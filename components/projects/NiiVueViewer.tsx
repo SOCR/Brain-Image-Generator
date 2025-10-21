@@ -45,9 +45,9 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
   const niivueRef = useRef<Niivue | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [viewType, setViewType] = useState<ViewType>('multiplanar')
+  const [viewType, setViewType] = useState<ViewType>('render')
   const [bgOpacity, setBgOpacity] = useState(1.0)
-  const [colorMap, setColorMap] = useState('gray')
+  const [colorMap, setColorMap] = useState('magma')
   const [isClipPlaneEnabled, setIsClipPlaneEnabled] = useState(false)
   const [isRadiological, setIsRadiological] = useState(false)
   const [isOrientationCube, setIsOrientationCube] = useState(true)
@@ -74,7 +74,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
       })
 
       // Set up custom location change handler
-      nv.onLocationChange = (data) => {
+      nv.onLocationChange = (data: any) => {
         if (data && typeof data.string === 'string') {
           setCrosshairLocation(data.string);
         }
@@ -124,8 +124,14 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
           opacity: bgOpacity
         }])
 
-        // Set multiplanar view by default
-        niivueRef.current.setSliceType(niivueRef.current.sliceTypeMultiplanar)
+        // Set 3D render view by default
+        niivueRef.current.setSliceType(niivueRef.current.sliceTypeRender)
+        // Set 3D rendering angle
+        if (niivueRef.current.volumes[0]) {
+          niivueRef.current.volumes[0].opacity = bgOpacity
+          niivueRef.current.setRenderAzimuthElevation(110, 15)
+          niivueRef.current.updateGLVolume()
+        }
 
         // Get volume range for contrast slider
         if (niivueRef.current.volumes.length > 0) {
@@ -286,38 +292,41 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
     <div className="flex flex-col h-full w-full">
       {/* Compact toolbar */}
       <div className="flex items-center bg-gray-50 border-b py-1 px-2 gap-1">
-        {/* View type buttons */}
+        {/* Views label and buttons */}
         <div className="flex items-center mr-2">
-          <IconButton 
-            icon={Grid3X3} 
-            label="Multiplanar View"
-            active={viewType === 'multiplanar'}
-            onClick={() => setViewType('multiplanar')}
-          />
-          <IconButton 
-            icon={SplitSquareVertical} 
-            label="Axial View"
-            active={viewType === 'axial'}
-            onClick={() => setViewType('axial')}
-          />
-          <IconButton 
-            icon={() => <SplitSquareVertical className="rotate-90" />} 
-            label="Coronal View"
-            active={viewType === 'coronal'}
-            onClick={() => setViewType('coronal')}
-          />
-          <IconButton 
-            icon={() => <SplitSquareVertical className="-rotate-90" />} 
-            label="Sagittal View"
-            active={viewType === 'sagittal'}
-            onClick={() => setViewType('sagittal')}
-          />
-          <IconButton 
-            icon={Box} 
-            label="3D Render"
-            active={viewType === 'render'}
-            onClick={() => setViewType('render')}
-          />
+          <span className="text-xs font-medium text-gray-600 mr-2 px-2">Views</span>
+          <div className="flex items-center">
+            <IconButton 
+              icon={Grid3X3} 
+              label="Multiplanar View"
+              active={viewType === 'multiplanar'}
+              onClick={() => setViewType('multiplanar')}
+            />
+            <IconButton 
+              icon={SplitSquareVertical} 
+              label="Axial View"
+              active={viewType === 'axial'}
+              onClick={() => setViewType('axial')}
+            />
+            <IconButton 
+              icon={() => <SplitSquareVertical className="rotate-90" />} 
+              label="Coronal View"
+              active={viewType === 'coronal'}
+              onClick={() => setViewType('coronal')}
+            />
+            <IconButton 
+              icon={() => <SplitSquareVertical className="-rotate-90" />} 
+              label="Sagittal View"
+              active={viewType === 'sagittal'}
+              onClick={() => setViewType('sagittal')}
+            />
+            <IconButton 
+              icon={Box} 
+              label="3D Render"
+              active={viewType === 'render'}
+              onClick={() => setViewType('render')}
+            />
+          </div>
         </div>
         
         <Separator orientation="vertical" className="h-6 mx-1" />
