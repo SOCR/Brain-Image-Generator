@@ -1,0 +1,45 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Environment files (will be set via CDK)
+.env
+.env.*
+
+# Test files
+test_*.py
+*_test.py
+
+# Documentation
+README.md
+
+# Data directory (too large, will be created at runtime)
+data/
+
+# Temporary files
+*.tmp
+*.log
+
+

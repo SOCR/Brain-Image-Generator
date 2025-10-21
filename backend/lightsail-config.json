@@ -1,0 +1,32 @@
+{
+  "serviceName": "socr-image-gen-backend",
+  "power": "micro",
+  "scale": 1,
+  "containers": {
+    "app": {
+      "image": ":socr-image-gen-backend.latest",
+      "ports": {
+        "8000": "HTTP"
+      },
+      "environment": {
+        "SUPABASE_URL": "",
+        "SUPABASE_KEY": "",
+        "FRONTEND_URL": ""
+      }
+    }
+  },
+  "publicEndpoint": {
+    "containerName": "app",
+    "containerPort": 8000,
+    "healthCheck": {
+      "healthyThreshold": 2,
+      "unhealthyThreshold": 2,
+      "timeoutSeconds": 5,
+      "intervalSeconds": 30,
+      "path": "/health",
+      "successCodes": "200-299"
+    }
+  }
+}
+
+
