@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
@@ -14,9 +15,12 @@ import {
   Info,
   Calendar,
   Tag,
-  Eye
+  Eye,
+  Grid3X3,
+  Square
 } from 'lucide-react'
 import NiiVueViewer from '@/components/projects/NiiVueViewer'
+import ColorMappedImage from '@/components/projects/ColorMappedImage'
 
 // Define image types
 type ImageType = 't1' | 't2' | 'flair' | 'seg' | 't1ce'
@@ -60,6 +64,12 @@ export default function ImageViewerPanel({
   selectedImageType,
   setSelectedImageType,
 }: ImageViewerPanelProps) {
+  const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
+  // Shared settings for both single and grid view (synced)
+  const [colormap, setColormap] = useState('gray')
+  const [brightness, setBrightness] = useState(1.0)
+  const [contrast, setContrast] = useState(1.0)
+  const [zoom, setZoom] = useState(1.0)
   // Render content based on selected model type (2D/3D)
   const renderContent = () => {
     if (isGenerating) {
@@ -182,36 +192,128 @@ export default function ImageViewerPanel({
                 value={type}
                 className="flex-1 m-0 relative"
               >
-                {/* Full-size image container */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-50 p-8">
-                  {currentSet.images[type] ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={currentSet.images[type] || ''}
-                      alt={`${IMAGE_TYPE_NAMES[type]} image`}
-                      className="max-w-full max-h-full object-contain"
+                {/* Grid or single view */}
+                {viewMode === 'grid' ? (
+                  /* Grid view */
+                  <>
+                    {/* Shared controls for grid view */}
+                    <ColorMappedImage
+                      src="" 
+                      alt=""
+                      showControls={true}
+                      compact={false}
+                      colormap={colormap}
+                      brightness={brightness}
+                      contrast={contrast}
+                      zoom={zoom}
+                      onColormapChange={setColormap}
+                      onBrightnessChange={setBrightness}
+                      onContrastChange={setContrast}
+                      onZoomChange={setZoom}
+                      controlsOnly={true}
                     />
-                  ) : (
-                    <div className="text-gray-400">
-                      No {IMAGE_TYPE_NAMES[type]} image available
+                    
+                    <div className="absolute inset-0 bg-gray-50 p-4 pl-60">
+                      <div className={`
+                        grid gap-4 h-full w-full
+                        ${availableTypes.length === 1 ? 'grid-cols-1' : ''}
+                        ${availableTypes.length === 2 ? 'grid-cols-2' : ''}
+                        ${availableTypes.length >= 3 ? 'grid-cols-2 grid-rows-2' : ''}
+                      `}>
+                        {availableTypes.map(gridType => (
+                          <div key={gridType} className="relative bg-white border border-gray-200 rounded-lg overflow-hidden">
+                            <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md shadow text-sm font-medium">
+                              {IMAGE_TYPE_NAMES[gridType]}
+                            </div>
+                            {currentSet.images[gridType] ? (
+                              <ColorMappedImage
+                                src={currentSet.images[gridType] || ''}
+                                alt={`${IMAGE_TYPE_NAMES[gridType]} image`}
+                                showControls={false}
+                                compact={true}
+                                colormap={colormap}
+                                brightness={brightness}
+                                contrast={contrast}
+                                zoom={zoom}
+                              />
+                            ) : (
+                              <div className="flex items-center justify-center h-full">
+                                <div className="text-gray-400 text-sm">
+                                  No {IMAGE_TYPE_NAMES[gridType]} image
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </>
+                ) : (
+                  /* Single view */
+                  <div className="absolute inset-0">
+                    {currentSet.images[type] ? (
+                      <ColorMappedImage
+                        src={currentSet.images[type] || ''}
+                        alt={`${IMAGE_TYPE_NAMES[type]} image`}
+                        showControls={true}
+                        colormap={colormap}
+                        brightness={brightness}
+                        contrast={contrast}
+                        zoom={zoom}
+                        onColormapChange={setColormap}
+                        onBrightnessChange={setBrightness}
+                        onContrastChange={setContrast}
+                        onZoomChange={setZoom}
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full">
+                        <div className="text-gray-400">
+                          No {IMAGE_TYPE_NAMES[type]} image available
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                {/* Tab switcher - bottom right corner */}
-                <div className="absolute bottom-6 right-6 z-10">
-                  <TabsList className="p-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg">
-                    {availableTypes.map(type => (
-                      <TabsTrigger
-                        key={type}
-                        value={type}
-                        disabled={!currentSet.images[type]}
-                        className="px-4 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--color-1)] data-[state=active]:via-[var(--color-3)] data-[state=active]:to-[var(--color-5)] data-[state=active]:text-white rounded-md min-w-[70px] transition-all"
-                      >
-                        {IMAGE_TYPE_NAMES[type]}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                {/* Tab switcher and view toggle - top right corner */}
+                <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+                  {/* View mode toggle */}
+                  {availableTypes.length > 1 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewMode(viewMode === 'single' ? 'grid' : 'single')}
+                      className="bg-white/95 backdrop-blur-sm shadow-lg"
+                    >
+                      {viewMode === 'single' ? (
+                        <>
+                          <Grid3X3 size={16} className="mr-2" />
+                          Grid View
+                        </>
+                      ) : (
+                        <>
+                          <Square size={16} className="mr-2" />
+                          Single View
+                        </>
+                      )}
+                    </Button>
+                  )}
+                  
+                  {/* Tab switcher - only show in single view */}
+                  {viewMode === 'single' && (
+                    <TabsList className="p-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg">
+                      {availableTypes.map(type => (
+                        <TabsTrigger
+                          key={type}
+                          value={type}
+                          disabled={!currentSet.images[type]}
+                          className="px-4 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[var(--color-1)] data-[state=active]:via-[var(--color-3)] data-[state=active]:to-[var(--color-5)] data-[state=active]:text-white rounded-md min-w-[70px] transition-all"
+                        >
+                          {IMAGE_TYPE_NAMES[type]}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                  )}
                 </div>
               </TabsContent>
             ))}

@@ -4,4 +4,3 @@ update the backend to support large number of image generation
 dark mode not consistant
 3d volume rendering - works in production, local dev mode issue with Next.js Fast Refresh & WebGL
 opacity settings - works in production, use prod build for testing
-color maps for 2d images.
