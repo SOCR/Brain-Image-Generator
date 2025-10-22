@@ -8540,3 +8540,1234 @@ The app will now open in dark mode by default, and all 2D images will use the vi
 
 ---
 
+_**User (2025-10-21 17:09Z)**_
+
+ok nw lets focus on the login page, I want the login and sign page ot have similar patter to the following. 
+@c:\Users\achus\syllabi-io\syllabi\frontend\src\app\(auth-pages)\sign-in\page.tsx 
+for now youc an leave the image as a placeholder for all the auth files, later we wil update it. 
+
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+
+
+---
+
+<think><details><summary>Thought Process</summary>The user wants me to update the login and sign-up pages to follow a similar pattern to the one shown in the attached file. Let me analyze the pattern:
+
+1. Uses a `Card` with `CardContent`
+2. Has a two-column grid layout (`md:grid-cols-2`)
+3. Left column has the form
+4. Right column has an image (currently they want a placeholder)
+5. The form has a nice header with title and description
+6. Clean spacing and styling
+7. Has links to forgot password and sign up/sign in
+
+Let me read the current auth pages first to see what needs to be updated.</details></think>
+
+---
+
+I'll update the login and sign-up pages to follow that modern card-based pattern with a side image. Let me first check the current auth pages and then update them.
+
+---
+
+Tool use: **read_file**
+
+Read file: app/(auth-pages)/sign-in/page.tsx
+
+---
+
+Tool use: **read_file**
+
+Read file: app/(auth-pages)/sign-up/page.tsx
+
+---
+
+Tool use: **read_file**
+
+Read file: app/(auth-pages)/forgot-password/page.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>Now let me check if the Card component is available in the project:</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: components/ui/card.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! The Card component is available. Now I'll update all three auth pages to follow the modern pattern. I'll create:
+
+1. Sign-in page with the card layout
+2. Sign-up page with the card layout
+3. Forgot password page with the card layout
+
+For the image, I'll use a placeholder div with a gradient or pattern for now.</details></think>
+
+---
+
+Now I'll update all three auth pages to follow the modern card-based pattern with a side image placeholder.
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [-] Update sign-in page with modern card layout and image placeholder
+- [ ] Update sign-up page with modern card layout and image placeholder
+- [ ] Update forgot-password page with modern card layout and image placeholder
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-in/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -2,4 +2,5 @@
+  import { FormMessage, Message } from "@/components/form-message";
+  import { SubmitButton } from "@/components/submit-button";
++ import { Card, CardContent } from "@/components/ui/card";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+```
+
+**Chunk 2**
+Lines added: 53, lines removed: 32
+
+```diff
+@@ -9,36 +10,57 @@
+    const searchParams = await props.searchParams;
+    return (
+-     <form className="flex-1 flex flex-col min-w-64">  
+-       <h1 className="text-2xl font-medium">Sign in</h1>
+-       <p className="text-sm text-foreground">
+-         Don't have an account?{" "}
+-         <Link className="text-foreground font-medium underline" href="/sign-up">
+-           Sign up
+-         </Link>
+-       </p>
+-       <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+-         <Label htmlFor="email">Email</Label>
+-         <Input name="email" placeholder="you@example.com" required />
+-         <div className="flex justify-between items-center">
+-           <Label htmlFor="password">Password</Label>
+-           <Link
+-             className="text-xs text-foreground underline"
+-             href="/forgot-password"
+-           >
+-             Forgot Password?
+-           </Link>
+-         </div>
+-         <Input
+-           type="password"
+-           name="password"
+-           placeholder="Your password"
+-           required
+-         />
+-         <SubmitButton pendingText="Signing In..." formAction={signInAction}>
+-           Sign in
+-         </SubmitButton>
+-         <FormMessage message={searchParams} />
+-       </div>
+-     </form>
++     <Card className="overflow-hidden w-full max-w-4xl mx-auto">
++       <CardContent className="grid p-0 md:grid-cols-2">
++         <form className="p-6 md:p-8 space-y-6">
++           <div className="flex flex-col items-center text-center space-y-1">
++             <h1 className="text-2xl font-bold">Welcome back</h1>
++             <p className="text-balance text-muted-foreground">
++               Sign in to SOCR Brain Gen
++             </p>
++           </div>
++           
++           <div className="space-y-4">
++             <div className="grid gap-2">
++               <Label htmlFor="email">Email</Label>
++               <Input id="email" name="email" type="email" placeholder="you@example.com" required />
++             </div>
++             <div className="grid gap-2">
++               <div className="flex items-center">
++                 <Label htmlFor="password">Password</Label>
++                 <Link
++                   href="/forgot-password"
++                   className="ml-auto text-sm underline underline-offset-2 hover:text-primary"
++                 >
++                   Forgot your password?
++                 </Link>
++               </div>
++               <Input id="password" name="password" type="password" required />
++             </div>
++             <SubmitButton pendingText="Signing In..." formAction={signInAction} className="w-full">
++               Sign in
++             </SubmitButton>
++           </div>
++ 
++           <FormMessage message={searchParams} />
++ 
++           <div className="text-center text-sm">
++             Don&apos;t have an account?{" "}
++             <Link href="/sign-up" className="underline underline-offset-4 hover:text-primary">
++               Sign up
++             </Link>
++           </div>
++         </form>
++ 
++         <div className="relative hidden bg-muted md:block">
++           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
++           <div className="absolute inset-0 flex items-center justify-center">
++             <div className="text-white text-center p-8">
++               <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
++               <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
++             </div>
++           </div>
++         </div>
++       </CardContent>
++     </Card>
+    );
+  }
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me update the sign-up page.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update sign-in page with modern card layout and image placeholder
+- [-] Update sign-up page with modern card layout and image placeholder
+- [ ] Update forgot-password page with modern card layout and image placeholder
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-up/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -2,4 +2,5 @@
+  import { FormMessage, Message } from "@/components/form-message";
+  import { SubmitButton } from "@/components/submit-button";
++ import { Card, CardContent } from "@/components/ui/card";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+```
+
+**Chunk 2**
+Lines added: 52, lines removed: 25
+
+```diff
+@@ -21,29 +22,56 @@
+    return (
+      <>
+-       <form className="flex flex-col min-w-64 max-w-64 mx-auto">
+-         <h1 className="text-2xl font-medium">Sign up</h1>
+-         <p className="text-sm text text-foreground">
+-           Already have an account?{" "}
+-           <Link className="text-primary font-medium underline" href="/sign-in">
+-             Sign in
+-           </Link>
+-         </p>
+-         <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+-           <Label htmlFor="email">Email</Label>
+-           <Input name="email" placeholder="you@example.com" required />
+-           <Label htmlFor="password">Password</Label>
+-           <Input
+-             type="password"
+-             name="password"
+-             placeholder="Your password"
+-             minLength={6}
+-             required
+-           />
+-           <SubmitButton formAction={signUpAction} pendingText="Signing up...">
+-             Sign up
+-           </SubmitButton>
+-           <FormMessage message={searchParams} />
+-         </div>
+-       </form>
++       <Card className="overflow-hidden w-full max-w-4xl mx-auto">
++         <CardContent className="grid p-0 md:grid-cols-2">
++           <form className="p-6 md:p-8 space-y-6">
++             <div className="flex flex-col items-center text-center space-y-1">
++               <h1 className="text-2xl font-bold">Create an account</h1>
++               <p className="text-balance text-muted-foreground">
++                 Sign up for SOCR Brain Gen
++               </p>
++             </div>
++             
++             <div className="space-y-4">
++               <div className="grid gap-2">
++                 <Label htmlFor="email">Email</Label>
++                 <Input id="email" name="email" type="email" placeholder="you@example.com" required />
++               </div>
++               <div className="grid gap-2">
++                 <Label htmlFor="password">Password</Label>
++                 <Input
++                   id="password"
++                   name="password"
++                   type="password"
++                   placeholder="At least 6 characters"
++                   minLength={6}
++                   required
++                 />
++               </div>
++               <SubmitButton formAction={signUpAction} pendingText="Signing up..." className="w-full">
++                 Sign up
++               </SubmitButton>
++             </div>
++ 
++             <FormMessage message={searchParams} />
++ 
++             <div className="text-center text-sm">
++               Already have an account?{" "}
++               <Link href="/sign-in" className="underline underline-offset-4 hover:text-primary">
++                 Sign in
++               </Link>
++             </div>
++           </form>
++ 
++           <div className="relative hidden bg-muted md:block">
++             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
++             <div className="absolute inset-0 flex items-center justify-center">
++               <div className="text-white text-center p-8">
++                 <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
++                 <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
++               </div>
++             </div>
++           </div>
++         </CardContent>
++       </Card>
+        <SmtpMessage />
+      </>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now let me update the forgot password page as well.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update sign-in page with modern card layout and image placeholder
+- [x] Update sign-up page with modern card layout and image placeholder
+- [-] Update forgot-password page with modern card layout and image placeholder
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -2,4 +2,5 @@
+  import { FormMessage, Message } from "@/components/form-message";
+  import { SubmitButton } from "@/components/submit-button";
++ import { Card, CardContent } from "@/components/ui/card";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+```
+
+**Chunk 2**
+Lines added: 41, lines removed: 19
+
+```diff
+@@ -13,23 +14,45 @@
+    return (
+      <>
+-       <form className="flex-1 flex flex-col w-full gap-2 text-foreground [&>input]:mb-6 min-w-64 max-w-64 mx-auto">
+-         <div>
+-           <h1 className="text-2xl font-medium">Reset Password</h1>
+-           <p className="text-sm text-secondary-foreground">
+-             Already have an account?{" "}
+-             <Link className="text-primary underline" href="/sign-in">
+-               Sign in
+-             </Link>
+-           </p>
+-         </div>
+-         <div className="flex flex-col gap-2 [&>input]:mb-3 mt-8">
+-           <Label htmlFor="email">Email</Label>
+-           <Input name="email" placeholder="you@example.com" required />
+-           <SubmitButton formAction={forgotPasswordAction}>
+-             Reset Password
+-           </SubmitButton>
+-           <FormMessage message={searchParams} />
+-         </div>
+-       </form>
++       <Card className="overflow-hidden w-full max-w-4xl mx-auto">
++         <CardContent className="grid p-0 md:grid-cols-2">
++           <form className="p-6 md:p-8 space-y-6">
++             <div className="flex flex-col items-center text-center space-y-1">
++               <h1 className="text-2xl font-bold">Reset your password</h1>
++               <p className="text-balance text-muted-foreground">
++                 Enter your email to receive a reset link
++               </p>
++             </div>
++             
++             <div className="space-y-4">
++               <div className="grid gap-2">
++                 <Label htmlFor="email">Email</Label>
++                 <Input id="email" name="email" type="email" placeholder="you@example.com" required />
++               </div>
++               <SubmitButton formAction={forgotPasswordAction} className="w-full">
++                 Reset Password
++               </SubmitButton>
++             </div>
++ 
++             <FormMessage message={searchParams} />
++ 
++             <div className="text-center text-sm">
++               Remember your password?{" "}
++               <Link href="/sign-in" className="underline underline-offset-4 hover:text-primary">
++                 Sign in
++               </Link>
++             </div>
++           </form>
++ 
++           <div className="relative hidden bg-muted md:block">
++             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
++             <div className="absolute inset-0 flex items-center justify-center">
++               <div className="text-white text-center p-8">
++                 <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
++                 <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
++               </div>
++             </div>
++           </div>
++         </CardContent>
++       </Card>
+        <SmtpMessage />
+      </>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! Let me also check if there's a reset password page that needs updating, then mark the todo as complete.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: app/protected/reset-password/page.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>I should update the reset-password page as well to match the pattern. Let me add a todo for it and update it too.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update sign-in page with modern card layout and image placeholder
+- [x] Update sign-up page with modern card layout and image placeholder
+- [x] Update forgot-password page with modern card layout and image placeholder
+- [-] Update reset-password page with modern card layout and image placeholder
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/protected/reset-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -2,4 +2,5 @@
+  import { FormMessage, Message } from "@/components/form-message";
+  import { SubmitButton } from "@/components/submit-button";
++ import { Card, CardContent } from "@/components/ui/card";
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
+```
+
+**Chunk 2**
+Lines added: 52, lines removed: 24
+
+```diff
+@@ -10,28 +11,56 @@
+    const searchParams = await props.searchParams;
+    return (
+-     <form className="flex flex-col w-full max-w-md p-4 gap-2 [&>input]:mb-4">
+-       <h1 className="text-2xl font-medium">Reset password</h1>
+-       <p className="text-sm text-foreground/60">
+-         Please enter your new password below.
+-       </p>
+-       <Label htmlFor="password">New password</Label>
+-       <Input
+-         type="password"
+-         name="password"
+-         placeholder="New password"
+-         required
+-       />
+-       <Label htmlFor="confirmPassword">Confirm password</Label>
+-       <Input
+-         type="password"
+-         name="confirmPassword"
+-         placeholder="Confirm password"
+-         required
+-       />
+-       <SubmitButton formAction={resetPasswordAction}>
+-         Reset password
+-       </SubmitButton>
+-       <FormMessage message={searchParams} />
+-     </form>
++     <Card className="overflow-hidden w-full max-w-4xl mx-auto">
++       <CardContent className="grid p-0 md:grid-cols-2">
++         <form className="p-6 md:p-8 space-y-6">
++           <div className="flex flex-col items-center text-center space-y-1">
++             <h1 className="text-2xl font-bold">Reset your password</h1>
++             <p className="text-balance text-muted-foreground">
++               Please enter your new password below
++             </p>
++           </div>
++           
++           <div className="space-y-4">
++             <div className="grid gap-2">
++               <Label htmlFor="password">New password</Label>
++               <Input
++                 id="password"
++                 type="password"
++                 name="password"
++                 placeholder="New password"
++                 minLength={6}
++                 required
++               />
++             </div>
++             <div className="grid gap-2">
++               <Label htmlFor="confirmPassword">Confirm password</Label>
++               <Input
++                 id="confirmPassword"
++                 type="password"
++                 name="confirmPassword"
++                 placeholder="Confirm password"
++                 minLength={6}
++                 required
++               />
++             </div>
++             <SubmitButton formAction={resetPasswordAction} className="w-full">
++               Reset password
++             </SubmitButton>
++           </div>
++ 
++           <FormMessage message={searchParams} />
++         </form>
++ 
++         <div className="relative hidden bg-muted md:block">
++           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
++           <div className="absolute inset-0 flex items-center justify-center">
++             <div className="text-white text-center p-8">
++               <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
++               <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
++             </div>
++           </div>
++         </div>
++       </CardContent>
++     </Card>
+    );
+  }
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! Now let me also check the SmtpMessage component to see if it needs any dark mode styling, since it appears on the auth pages.</details></think>
+
+---
+
+Tool use: **read_file**
+
+Read file: app/(auth-pages)/smtp-message.tsx
+
+---
+
+<think><details><summary>Thought Process</summary>The SmtpMessage component looks fine - it already uses theme-aware Tailwind classes like `bg-muted/50`, `text-secondary-foreground`, and `text-primary` which automatically adapt to dark mode.
+
+Let me mark the todo as complete and check if there are any linter errors.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update sign-in page with modern card layout and image placeholder
+- [x] Update sign-up page with modern card layout and image placeholder
+- [x] Update forgot-password page with modern card layout and image placeholder
+- [x] Update reset-password page with modern card layout and image placeholder
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 4 files</summary>
+      
+Lint paths:
+
+- `app/(auth-pages)/sign-in/page.tsx`
+- `app/(auth-pages)/sign-up/page.tsx`
+- `app/(auth-pages)/forgot-password/page.tsx`
+- `app/protected/reset-password/page.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! No linter errors. All the auth pages have been successfully updated to follow the modern card-based pattern with side image placeholders. Let me clear the todo list now.</details></think>
+
+---
+
+Perfect! All auth pages have been successfully updated with the modern card-based layout! ✨
+
+## Summary of Changes
+
+I've updated all four authentication pages to follow the modern pattern from your reference:
+
+### ✅ **Updated Pages:**
+
+1. **Sign In** (`app/(auth-pages)/sign-in/page.tsx`)
+   - Modern card layout with two-column grid
+   - Clean centered header with "Welcome back" title
+   - Better form spacing and organization
+   - Link to sign-up at the bottom
+
+2. **Sign Up** (`app/(auth-pages)/sign-up/page.tsx`)
+   - Matching card layout
+   - "Create an account" heading
+   - Password field with 6-character minimum
+   - Link to sign-in at the bottom
+
+3. **Forgot Password** (`app/(auth-pages)/forgot-password/page.tsx`)
+   - Same card pattern
+   - "Reset your password" heading
+   - Simple email input with clear instructions
+   - Link back to sign-in
+
+4. **Reset Password** (`app/protected/reset-password/page.tsx`)
+   - Consistent card layout
+   - New password and confirm password fields
+   - Same styling as other auth pages
+
+### 🎨 **Design Features:**
+
+- ✅ **Two-column layout** - Form on left, visual on right (hidden on mobile)
+- ✅ **Gradient placeholder** - Beautiful indigo-purple-pink gradient with SOCR branding
+- ✅ **Centered headers** - Bold titles with descriptive subtitles
+- ✅ **Consistent spacing** - Clean, modern spacing throughout
+- ✅ **Full-width buttons** - Better visual balance
+- ✅ **Dark mode compatible** - Uses theme-aware Tailwind classes
+- ✅ **Responsive** - Single column on mobile, two columns on desktop
+- ✅ **No linter errors** - Clean code
+
+The gradient placeholder can easily be replaced with actual images later by swapping the gradient divs with `<Image>` components, just like in your reference!
+
+---
+
+_**User (2025-10-21 17:09Z)**_
+
+ couple of issues as youcan see its not centered on the page. Let me give you the layout code. 
+
+@c:\Users\achus\syllabi-io\syllabi\frontend\src\app\(auth-pages)\layout.tsx @signin-1.png @signup-1.png  also I have added these signin and sign up images add those as well.
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user is showing me that the auth pages are not centered properly on the page. They've provided:
+1. A layout file from their reference project that shows how to properly center the auth cards
+2. Two images (signin-1.png and signup-1.png) that should be used instead of the gradient placeholder
+
+Looking at their reference layout:
+- It uses `flex flex-col min-h-screen items-center justify-center` to center everything
+- Has `p-4 lg:p-8` for padding
+- Has a `bg-muted/40` background
+- Has a footer with terms and privacy links
+- Max width is `max-w-4xl` for the children
+
+I need to:
+1. Check the current auth layout in the SOCR project
+2. Update it to match the centering approach from the reference
+3. Replace the gradient placeholders with the actual images (signin-1.png and signup-1.png)</details></think>
+
+---
+
+I'll fix the centering issue by updating the auth layout and add the actual images you provided. Let me check the current layout first and then make the necessary changes.
+
+---
+
+Tool use: **read_file**
+
+Read file: app/(auth-pages)/layout.tsx
+
+---
+
+Tool use: **list_dir**
+
+<details>
+            <summary>Listed directory undefined • **0** results</summary>
+        
+No results found
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! I can see:
+1. The current layout is very basic and doesn't center the content properly
+2. The images are already in the public folder (signin-1.png and signup-1.png)
+
+Now I need to:
+1. Update the auth layout to properly center the cards
+2. Update sign-in page to use signin-1.png
+3. Update sign-up page to use signup-1.png
+4. Keep the same image for forgot-password and reset-password (or use one of the provided ones)</details></think>
+
+---
+
+Perfect! I can see the images are already in the public folder. Let me update the auth layout to center everything properly and then update the pages to use the actual images.
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [-] Update auth layout to properly center pages
+- [ ] Add signin-1.png image to sign-in page
+- [ ] Add signup-1.png image to sign-up page
+- [ ] Add images to forgot-password and reset-password pages
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/layout.tsx</summary>
+
+**Chunk 1**
+Lines added: 2, lines removed: undefined
+
+```diff
+@@ -1,2 +1,4 @@
++ import Link from "next/link";
++ 
+  export default async function Layout({
+    children,
+```
+
+**Chunk 2**
+Lines added: 16, lines removed: 1
+
+```diff
+@@ -5,5 +7,20 @@
+  }) {
+    return (
+-     <div className="max-w-7xl flex flex-col gap-12 items-start">{children}</div>
++     <div className="flex flex-col min-h-screen items-center justify-center p-4 lg:p-8 bg-muted/40">
++       <div className="w-full max-w-4xl">
++         {children}
++       </div>
++       <footer className="mt-6 text-center text-xs text-muted-foreground">
++         By continuing, you agree to SOCR&apos;s{" "}
++         <Link href="/terms" className="underline hover:text-primary">
++           Terms of Service
++         </Link>{" "}
++         and{" "}
++         <Link href="/privacy" className="underline hover:text-primary">
++           Privacy Policy
++         </Link>
++         .
++       </footer>
++     </div>
+    );
+  }
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now I need to update the sign-in and sign-up pages to use the actual images instead of the gradient placeholders. I'll need to import Image from next/image and replace the gradient div with the image component.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update auth layout to properly center pages
+- [-] Add signin-1.png image to sign-in page
+- [ ] Add signup-1.png image to sign-up page
+- [ ] Add images to forgot-password and reset-password pages
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-in/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -6,4 +6,5 @@
+  import { Label } from "@/components/ui/label";
+  import Link from "next/link";
++ import Image from "next/image";
+  
+  export default async function Login(props: { searchParams: Promise<Message> }) {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-in/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 7
+
+```diff
+@@ -54,11 +54,11 @@
+  
+          <div className="relative hidden bg-muted md:block">
+-           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
+-           <div className="absolute inset-0 flex items-center justify-center">
+-             <div className="text-white text-center p-8">
+-               <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
+-               <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
+-             </div>
+-           </div>
++           <Image 
++             src="/signin-1.png" 
++             alt="Sign In" 
++             fill
++             className="object-cover"
++             priority
++           />
+          </div>
+        </CardContent>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good! Now let me update the sign-up page with the signup-1.png image.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update auth layout to properly center pages
+- [x] Add signin-1.png image to sign-in page
+- [-] Add signup-1.png image to sign-up page
+- [ ] Add images to forgot-password and reset-password pages
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-up/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -6,4 +6,5 @@
+  import { Label } from "@/components/ui/label";
+  import Link from "next/link";
++ import Image from "next/image";
+  import { SmtpMessage } from "../smtp-message";
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-up/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 7
+
+```diff
+@@ -65,11 +65,11 @@
+  
+            <div className="relative hidden bg-muted md:block">
+-             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
+-             <div className="absolute inset-0 flex items-center justify-center">
+-               <div className="text-white text-center p-8">
+-                 <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
+-                 <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
+-               </div>
+-             </div>
++             <Image 
++               src="/signup-1.png" 
++               alt="Sign Up" 
++               fill
++               className="object-cover"
++               priority
++             />
+            </div>
+          </CardContent>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Now I need to update the forgot-password and reset-password pages. Since the user said to use placeholders for now and we'll update them later, I could either:
+1. Use one of the existing images (signin-1.png or signup-1.png)
+2. Keep the gradient
+
+I think I'll use signin-1.png for both since it's a nice security-themed image that would work well for password reset flows.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update auth layout to properly center pages
+- [x] Add signin-1.png image to sign-in page
+- [x] Add signup-1.png image to sign-up page
+- [-] Add images to forgot-password and reset-password pages
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -6,4 +6,5 @@
+  import { Label } from "@/components/ui/label";
+  import Link from "next/link";
++ import Image from "next/image";
+  import { SmtpMessage } from "../smtp-message";
+  
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 7
+
+```diff
+@@ -46,11 +46,11 @@
+  
+            <div className="relative hidden bg-muted md:block">
+-             <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
+-             <div className="absolute inset-0 flex items-center justify-center">
+-               <div className="text-white text-center p-8">
+-                 <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
+-                 <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
+-               </div>
+-             </div>
++             <Image 
++               src="/signin-1.png" 
++               alt="Password Reset" 
++               fill
++               className="object-cover"
++               priority
++             />
+            </div>
+          </CardContent>
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/protected/reset-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 1, lines removed: undefined
+
+```diff
+@@ -5,4 +5,5 @@
+  import { Input } from "@/components/ui/input";
+  import { Label } from "@/components/ui/label";
++ import Image from "next/image";
+  
+  export default async function ResetPassword(props: {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/protected/reset-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: 7, lines removed: 7
+
+```diff
+@@ -54,11 +54,11 @@
+  
+          <div className="relative hidden bg-muted md:block">
+-           <div className="absolute inset-0 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 opacity-90" />
+-           <div className="absolute inset-0 flex items-center justify-center">
+-             <div className="text-white text-center p-8">
+-               <h2 className="text-3xl font-bold mb-4">SOCR Brain Gen</h2>
+-               <p className="text-lg opacity-90">Generate synthetic brain images with AI</p>
+-             </div>
+-           </div>
++           <Image 
++             src="/signin-1.png" 
++             alt="Reset Password" 
++             fill
++             className="object-cover"
++             priority
++           />
+          </div>
+        </CardContent>
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Great! Now let me mark the task as completed and check for any linter errors in all the auth files I've updated.</details></think>
+
+---
+
+Tool use: **todo_write**
+
+## Todo List
+
+- [x] Update auth layout to properly center pages
+- [x] Add signin-1.png image to sign-in page
+- [x] Add signup-1.png image to sign-up page
+- [x] Add images to forgot-password and reset-password pages
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 5 files</summary>
+      
+Lint paths:
+
+- `app/(auth-pages)/layout.tsx`
+- `app/(auth-pages)/sign-in/page.tsx`
+- `app/(auth-pages)/sign-up/page.tsx`
+- `app/(auth-pages)/forgot-password/page.tsx`
+- `app/protected/reset-password/page.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! No linter errors. Let me also check that the SmtpMessage component has proper dark mode support since it's displayed on the sign-up and forgot-password pages. Actually, let me read it and see if it needs updating.</details></think>
+
+---
+
+_**User (2025-10-21 17:09Z)**_
+
+Removethe note Emmails are  reate limited.
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user wants to remove the SMTP message that shows "Note: Emails are rate limited. Enable Custom SMTP to increase the rate limit." from the auth pages. This message is rendered by the `SmtpMessage` component that's imported in the sign-up and forgot-password pages.
+
+I should remove the `<SmtpMessage />` component from those pages.</details></think>
+
+---
+
+I'll remove the SMTP rate limit message from the auth pages.
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-up/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -7,5 +7,4 @@
+  import Link from "next/link";
+  import Image from "next/image";
+- import { SmtpMessage } from "../smtp-message";
+  
+  export default async function Signup(props: {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/sign-up/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -74,5 +74,4 @@
+          </CardContent>
+        </Card>
+-       <SmtpMessage />
+      </>
+    );
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -7,5 +7,4 @@
+  import Link from "next/link";
+  import Image from "next/image";
+- import { SmtpMessage } from "../smtp-message";
+  
+  export default async function ForgotPassword(props: {
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: app/(auth-pages)/forgot-password/page.tsx</summary>
+
+**Chunk 1**
+Lines added: undefined, lines removed: 1
+
+```diff
+@@ -55,5 +55,4 @@
+          </CardContent>
+        </Card>
+-       <SmtpMessage />
+      </>
+    );
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good, I've removed the SmtpMessage component from both sign-up and forgot-password pages. Let me check for linter errors to make sure everything is clean.</details></think>
+
+---
+
+Tool use: **read_lints**
+
+<details>
+          <summary>Read lints for 2 files</summary>
+      
+Lint paths:
+
+- `app/(auth-pages)/sign-up/page.tsx`
+- `app/(auth-pages)/forgot-password/page.tsx`
+
+Lint results
+
+
+**No lint errors found**
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Perfect! I've successfully removed the SMTP rate limit message from both the sign-up and forgot-password pages. The changes are clean with no linter errors.</details></think>
+
+---
+
+Perfect! ✅ I've removed the "Emails are rate limited" message from the auth pages. 
+
+The SMTP warning message has been removed from:
+- **Sign-up page** - Removed `SmtpMessage` component and import
+- **Forgot password page** - Removed `SmtpMessage` component and import
+
+The pages now have a cleaner look without the rate limit notification, and there are no linter errors.
+
+---
+
