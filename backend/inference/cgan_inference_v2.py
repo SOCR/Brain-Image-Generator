@@ -9,34 +9,27 @@ import os
 import matplotlib.pyplot as plt
 
 def class_embedding(tumour, slice_orientation, slice_location):
-    # Map the tumour class
-    if tumour == "With Tumor":
-        tumour_class = 1
-    else:
-        tumour_class = 0
+    # Use the EXACT same mapping as the original R Shiny app
+    oreintation_dict = {"Axial": 0, "Coronal": 6, "Sagittal": 12}
+    location_dict = {
+        "Inferior": 0, "Middle": 2, "Superior": 4,
+        "Left": 0, "Right": 4, 
+        "Anterior": 0, "Posterior": 4
+    }
+    tumour_dict = {"Without Tumor": 0, "With Tumor": 1}
     
-    # Map the slice orientation
-    if slice_orientation == "Axial":
-        orientation_class = 0
-    elif slice_orientation == "Coronal":
-        orientation_class = 1
-    elif slice_orientation == "Sagittal":
-        orientation_class = 2
-    else:
-        orientation_class = 0
+    # Calculate class label using the original formula
+    class_label = (oreintation_dict[slice_orientation] + 
+                   location_dict[slice_location] + 
+                   tumour_dict[tumour])
     
-    # Map the slice location
-    if slice_location == "Anterior" or slice_location == "Superior":
-        location_class = 0
-    elif slice_location == "Middle":
-        location_class = 1
-    elif slice_location == "Posterior" or slice_location == "Inferior":
-        location_class = 2
-    else:
-        location_class = 1  # Default to middle
+    # Debug logging
+    print(f"[cGAN v2] Class Embedding Debug:")
+    print(f"  Tumour: {tumour} -> {tumour_dict[tumour]}")
+    print(f"  Orientation: {slice_orientation} -> {oreintation_dict[slice_orientation]}")
+    print(f"  Location: {slice_location} -> {location_dict[slice_location]}")
+    print(f"  Final class label: {class_label}")
     
-    # Calculate the final class label
-    class_label = tumour_class * 9 + orientation_class * 3 + location_class
     return class_label
                   
 def save_images(images, slice_orientation, save_path, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):

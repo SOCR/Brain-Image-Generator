@@ -56,12 +56,23 @@ def transform_to_real_images(coarse_coeffs, fine_coeffs, glob_min_max_csv):
 def class_embedding(tumour,slice_orientation,slice_location):
   
    oreintation_dict = {"Axial":0, "Coronal":6, "Sagittal":12}
+   # Updated location mappings to match frontend labels
+   # For Axial: Inferior (0), Middle (2), Superior (4)
+   # For Coronal: Anterior (0), Middle (2), Posterior (4) 
+   # For Sagittal: Left (0), Middle (2), Right (4)
    location_dict    = {"Inferior" : 0, "Middle": 2, "Superior":4,
-                      "Left":0, "Right":4, "Front":0, "Back":4}
+                      "Left":0, "Right":4, "Anterior":0, "Posterior":4}
    tumour_dict      = {"Without Tumor": 0, "With Tumor":1}
    
    class_label      = oreintation_dict[slice_orientation] + \
                       location_dict[slice_location] + tumour_dict[tumour]
+   
+   # Debug logging
+   print(f"[WGAN] Class Embedding Debug:")
+   print(f"  Tumour: {tumour} -> {tumour_dict[tumour]}")
+   print(f"  Orientation: {slice_orientation} -> {oreintation_dict[slice_orientation]}")
+   print(f"  Location: {slice_location} -> {location_dict[slice_location]}")
+   print(f"  Final class label: {class_label}")
                       
    return class_label
                   

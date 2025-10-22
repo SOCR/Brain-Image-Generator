@@ -125,9 +125,8 @@ export function ProjectSwitcher({ currentProject }: ProjectSwitcherProps) {
             variant="ghost"
             className="w-full justify-start text-left px-2 py-1.5 text-sm"
             onClick={() => {
+              router.push('/dashboard');
               setIsOpen(false);
-              // Open create project modal
-              document.dispatchEvent(new CustomEvent('open-create-project-modal'));
             }}
           >
             <PlusCircle className="h-4 w-4 mr-2" />

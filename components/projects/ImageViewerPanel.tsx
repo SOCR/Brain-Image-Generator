@@ -32,7 +32,7 @@ const IMAGE_TYPE_NAMES: Record<ImageType, string> = {
   't1': 'T1',
   't2': 'T2',
   'flair': 'FLAIR',
-  'seg': 'Segment',
+  'seg': 'Tumor Mask',
   't1ce': 'T1 CE'
 }
 
@@ -71,6 +71,9 @@ export default function ImageViewerPanel({
   const [brightness, setBrightness] = useState(1.0)
   const [contrast, setContrast] = useState(1.0)
   const [zoom, setZoom] = useState(1.0)
+  const [rotation, setRotation] = useState(0)
+  const [flipH, setFlipH] = useState(false)
+  const [flipV, setFlipV] = useState(false)
   // Render content based on selected model type (2D/3D)
   const renderContent = () => {
     if (isGenerating) {
@@ -214,10 +217,16 @@ export default function ImageViewerPanel({
                       brightness={brightness}
                       contrast={contrast}
                       zoom={zoom}
+                      rotation={rotation}
+                      flipH={flipH}
+                      flipV={flipV}
                       onColormapChange={setColormap}
                       onBrightnessChange={setBrightness}
                       onContrastChange={setContrast}
                       onZoomChange={setZoom}
+                      onRotationChange={setRotation}
+                      onFlipHChange={setFlipH}
+                      onFlipVChange={setFlipV}
                       controlsOnly={true}
                     />
                     
@@ -226,7 +235,9 @@ export default function ImageViewerPanel({
                         grid gap-4 h-full w-full
                         ${availableTypes.length === 1 ? 'grid-cols-1' : ''}
                         ${availableTypes.length === 2 ? 'grid-cols-2' : ''}
-                        ${availableTypes.length >= 3 ? 'grid-cols-2 grid-rows-2' : ''}
+                        ${availableTypes.length === 3 ? 'grid-cols-2 grid-rows-2' : ''}
+                        ${availableTypes.length === 4 ? 'grid-cols-2 grid-rows-2' : ''}
+                        ${availableTypes.length === 5 ? 'grid-cols-3 grid-rows-2' : ''}
                       `}>
                         {availableTypes.map(gridType => (
                           <div key={gridType} className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
@@ -243,6 +254,9 @@ export default function ImageViewerPanel({
                                 brightness={brightness}
                                 contrast={contrast}
                                 zoom={zoom}
+                                rotation={rotation}
+                                flipH={flipH}
+                                flipV={flipV}
                               />
                             ) : (
                               <div className="flex items-center justify-center h-full">
@@ -268,10 +282,16 @@ export default function ImageViewerPanel({
                         brightness={brightness}
                         contrast={contrast}
                         zoom={zoom}
+                        rotation={rotation}
+                        flipH={flipH}
+                        flipV={flipV}
                         onColormapChange={setColormap}
                         onBrightnessChange={setBrightness}
                         onContrastChange={setContrast}
                         onZoomChange={setZoom}
+                        onRotationChange={setRotation}
+                        onFlipHChange={setFlipH}
+                        onFlipVChange={setFlipV}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">

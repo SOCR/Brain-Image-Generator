@@ -14,7 +14,7 @@ export const IMAGE_TYPE_NAMES: Record<ImageType, string> = {
   't1': 'T1',
   't2': 'T2',
   'flair': 'FLAIR',
-  'seg': 'Segment',
+  'seg': 'Tumor Mask',
   't1ce': 'T1 CE'
 }
 
@@ -46,6 +46,27 @@ export default function ImageViewer({
   const [rotation, setRotation] = useState(0)
   const [flipH, setFlipH] = useState(false)
   const [flipV, setFlipV] = useState(false)
+  
+  // Wrap setters with debug logging
+  const handleSetRotation = (value: number) => {
+    console.log('[ImageViewer handleSetRotation]', value)
+    setRotation(value)
+  }
+  const handleSetFlipH = (value: boolean) => {
+    console.log('[ImageViewer handleSetFlipH]', value)
+    setFlipH(value)
+  }
+  const handleSetFlipV = (value: boolean) => {
+    console.log('[ImageViewer handleSetFlipV]', value)
+    setFlipV(value)
+  }
+
+  // Debug logging for rotation/flip changes
+  useEffect(() => {
+    if (viewMode === 'grid') {
+      console.log('[ImageViewer] Grid mode - rotation/flip state:', { rotation, flipH, flipV })
+    }
+  }, [rotation, flipH, flipV, viewMode])
 
   // Set first available type when images change
   useEffect(() => {
@@ -98,9 +119,9 @@ export default function ImageViewer({
           onBrightnessChange={setBrightness}
           onContrastChange={setContrast}
           onZoomChange={setZoom}
-          onRotationChange={setRotation}
-          onFlipHChange={setFlipH}
-          onFlipVChange={setFlipV}
+          onRotationChange={handleSetRotation}
+          onFlipHChange={handleSetFlipH}
+          onFlipVChange={handleSetFlipV}
           controlsOnly={true}
         />
         
@@ -177,9 +198,9 @@ export default function ImageViewer({
                 onBrightnessChange={setBrightness}
                 onContrastChange={setContrast}
                 onZoomChange={setZoom}
-                onRotationChange={setRotation}
-                onFlipHChange={setFlipH}
-                onFlipVChange={setFlipV}
+                onRotationChange={handleSetRotation}
+                onFlipHChange={handleSetFlipH}
+                onFlipVChange={handleSetFlipV}
               />
             ) : (
               <div className="flex items-center justify-center h-full">

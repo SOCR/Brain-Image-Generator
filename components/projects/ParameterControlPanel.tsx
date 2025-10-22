@@ -87,6 +87,36 @@ export default function ParameterControlPanel({
 
     if (selectedModel.includes('braingen_cGAN_Multicontrast') ||
         selectedModel === 'braingen_WaveletGAN_Multicontrast_BraTS_v1 (2D)') {
+      // Get location options based on orientation
+      const getLocationOptions = () => {
+        switch (sliceOrientation) {
+          case 'Axial':
+            return [
+              { value: 'Inferior', label: 'Inferior (bottom)' },
+              { value: 'Middle', label: 'Middle' },
+              { value: 'Superior', label: 'Superior (top)' }
+            ];
+          case 'Coronal':
+            return [
+              { value: 'Anterior', label: 'Anterior (front)' },
+              { value: 'Middle', label: 'Middle' },
+              { value: 'Posterior', label: 'Posterior (back)' }
+            ];
+          case 'Sagittal':
+            return [
+              { value: 'Left', label: 'Left' },
+              { value: 'Middle', label: 'Middle' },
+              { value: 'Right', label: 'Right' }
+            ];
+          default:
+            return [
+              { value: 'Middle', label: 'Middle' }
+            ];
+        }
+      };
+
+      const locationOptions = getLocationOptions();
+
       return (
         <div className="space-y-3 mt-4">
           <div>
@@ -104,7 +134,11 @@ export default function ParameterControlPanel({
 
           <div>
             <Label htmlFor="orientation-select">Slice Orientation</Label>
-            <Select value={sliceOrientation} onValueChange={setSliceOrientation}>
+            <Select value={sliceOrientation} onValueChange={(value) => {
+              setSliceOrientation(value);
+              // Reset location to Middle when orientation changes
+              setSliceLocation('Middle');
+            }}>
               <SelectTrigger id="orientation-select">
                 <SelectValue placeholder="Select slice orientation" />
               </SelectTrigger>
@@ -123,9 +157,11 @@ export default function ParameterControlPanel({
                 <SelectValue placeholder="Select slice location" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Anterior">Anterior</SelectItem>
-                <SelectItem value="Middle">Middle</SelectItem>
-                <SelectItem value="Posterior">Posterior</SelectItem>
+                {locationOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

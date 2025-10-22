@@ -150,6 +150,20 @@ export default function ColorMappedImage({
   const flipH = controlledFlipH ?? internalFlipH
   const flipV = controlledFlipV ?? internalFlipV
   
+  // Debug logging for grid view
+  useEffect(() => {
+    if (compact) {
+      console.log(`[ColorMappedImage ${src.split('/').pop()}] Compact mode props:`, {
+        controlledRotation,
+        rotation,
+        controlledFlipH,
+        flipH,
+        controlledFlipV,
+        flipV
+      })
+    }
+  }, [compact, src, controlledRotation, rotation, controlledFlipH, flipH, controlledFlipV, flipV])
+  
   const setColorMap = (value: ColorMap) => {
     if (onColormapChange) {
       onColormapChange(value)
@@ -183,6 +197,7 @@ export default function ColorMappedImage({
   }
   
   const setRotation = (value: number) => {
+    console.log('[setRotation] called with:', value, 'onRotationChange:', !!onRotationChange, 'controlsOnly:', controlsOnly)
     if (onRotationChange) {
       onRotationChange(value)
     } else {
@@ -191,6 +206,7 @@ export default function ColorMappedImage({
   }
   
   const setFlipH = (value: boolean) => {
+    console.log('[setFlipH] called with:', value, 'onFlipHChange:', !!onFlipHChange, 'controlsOnly:', controlsOnly)
     if (onFlipHChange) {
       onFlipHChange(value)
     } else {
@@ -199,6 +215,7 @@ export default function ColorMappedImage({
   }
   
   const setFlipV = (value: boolean) => {
+    console.log('[setFlipV] called with:', value, 'onFlipVChange:', !!onFlipVChange, 'controlsOnly:', controlsOnly)
     if (onFlipVChange) {
       onFlipVChange(value)
     } else {
@@ -263,6 +280,11 @@ export default function ColorMappedImage({
     
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
+
+    // Debug logging
+    if (compact) {
+      console.log(`[applyColorMap ${src.split('/').pop()}]`, { rotation, flipH, flipV })
+    }
 
     // Adjust canvas size based on rotation
     // For 90 or 270 degree rotation, swap width and height
