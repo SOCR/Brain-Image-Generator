@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Palette, BarChart3, ZoomIn, ZoomOut, Maximize2, Loader2 } from 'lucide-react'
+import { Palette, BarChart3, ZoomIn, ZoomOut, Maximize2, Loader2, RotateCw, FlipHorizontal, FlipVertical } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ColorMappedImageProps {
@@ -22,10 +22,16 @@ interface ColorMappedImageProps {
   brightness?: number
   contrast?: number
   zoom?: number
+  rotation?: number // 0, 90, 180, 270 degrees
+  flipH?: boolean // Horizontal flip
+  flipV?: boolean // Vertical flip
   onColormapChange?: (colormap: string) => void
   onBrightnessChange?: (brightness: number) => void
   onContrastChange?: (contrast: number) => void
   onZoomChange?: (zoom: number) => void
+  onRotationChange?: (rotation: number) => void
+  onFlipHChange?: (flipH: boolean) => void
+  onFlipVChange?: (flipV: boolean) => void
 }
 
 // Define colormap types
@@ -111,10 +117,16 @@ export default function ColorMappedImage({
   brightness: controlledBrightness,
   contrast: controlledContrast,
   zoom: controlledZoom,
+  rotation: controlledRotation,
+  flipH: controlledFlipH,
+  flipV: controlledFlipV,
   onColormapChange,
   onBrightnessChange,
   onContrastChange,
-  onZoomChange
+  onZoomChange,
+  onRotationChange,
+  onFlipHChange,
+  onFlipVChange
 }: ColorMappedImageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -126,11 +138,17 @@ export default function ColorMappedImage({
   const [internalBrightness, setInternalBrightness] = useState(1.0)
   const [internalContrast, setInternalContrast] = useState(1.0)
   const [internalZoom, setInternalZoom] = useState(1.0)
+  const [internalRotation, setInternalRotation] = useState(0)
+  const [internalFlipH, setInternalFlipH] = useState(false)
+  const [internalFlipV, setInternalFlipV] = useState(false)
   
   const colorMap = (controlledColormap || internalColorMap) as ColorMap
   const brightness = controlledBrightness ?? internalBrightness
   const contrast = controlledContrast ?? internalContrast
   const zoom = controlledZoom ?? internalZoom
+  const rotation = controlledRotation ?? internalRotation
+  const flipH = controlledFlipH ?? internalFlipH
+  const flipV = controlledFlipV ?? internalFlipV
   
   const setColorMap = (value: ColorMap) => {
     if (onColormapChange) {
@@ -161,6 +179,30 @@ export default function ColorMappedImage({
       onZoomChange(value)
     } else {
       setInternalZoom(value)
+    }
+  }
+  
+  const setRotation = (value: number) => {
+    if (onRotationChange) {
+      onRotationChange(value)
+    } else {
+      setInternalRotation(value)
+    }
+  }
+  
+  const setFlipH = (value: boolean) => {
+    if (onFlipHChange) {
+      onFlipHChange(value)
+    } else {
+      setInternalFlipH(value)
+    }
+  }
+  
+  const setFlipV = (value: boolean) => {
+    if (onFlipVChange) {
+      onFlipVChange(value)
+    } else {
+      setInternalFlipV(value)
     }
   }
   
@@ -204,7 +246,7 @@ export default function ColorMappedImage({
         drawColorbar()
       }
     }
-  }, [colorMap, brightness, contrast, isLoading, showColorbar])
+  }, [colorMap, brightness, contrast, rotation, flipH, flipV, isLoading, showColorbar])
   
   // Reset pan when zoom changes to 1.0
   useEffect(() => {
@@ -222,12 +264,30 @@ export default function ColorMappedImage({
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
 
-    // Set canvas size to match image
-    canvas.width = img.width
-    canvas.height = img.height
+    // Adjust canvas size based on rotation
+    // For 90 or 270 degree rotation, swap width and height
+    const is90or270 = rotation === 90 || rotation === 270
+    canvas.width = is90or270 ? img.height : img.width
+    canvas.height = is90or270 ? img.width : img.height
 
-    // Draw original image
-    ctx.drawImage(img, 0, 0)
+    // Save context state
+    ctx.save()
+
+    // Apply transformations
+    // Move to center of canvas
+    ctx.translate(canvas.width / 2, canvas.height / 2)
+    
+    // Apply rotation
+    ctx.rotate((rotation * Math.PI) / 180)
+    
+    // Apply flips
+    ctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+
+    // Draw original image centered
+    ctx.drawImage(img, -img.width / 2, -img.height / 2)
+
+    // Restore context state
+    ctx.restore()
 
     // Get image data
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -392,6 +452,72 @@ export default function ColorMappedImage({
             )}
           </div>
         </div>
+
+        {/* Rotation control */}
+        <div>
+          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+            Rotation
+          </Label>
+          <div className="grid grid-cols-4 gap-1">
+            <Button
+              variant={rotation === 0 ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setRotation(0)}
+            >
+              0°
+            </Button>
+            <Button
+              variant={rotation === 90 ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setRotation(90)}
+            >
+              90°
+            </Button>
+            <Button
+              variant={rotation === 180 ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setRotation(180)}
+            >
+              180°
+            </Button>
+            <Button
+              variant={rotation === 270 ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setRotation(270)}
+            >
+              270°
+            </Button>
+          </div>
+        </div>
+
+        {/* Flip controls */}
+        <div>
+          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+            Flip
+          </Label>
+          <div className="grid grid-cols-2 gap-1">
+            <Button
+              variant={flipH ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setFlipH(!flipH)}
+            >
+              <FlipHorizontal size={12} />
+            </Button>
+            <Button
+              variant={flipV ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs px-1"
+              onClick={() => setFlipV(!flipV)}
+            >
+              <FlipVertical size={12} />
+            </Button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -545,6 +671,72 @@ export default function ColorMappedImage({
                   Reset
                 </Button>
               )}
+            </div>
+          </div>
+
+          {/* Rotation control */}
+          <div>
+            <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+              Rotation
+            </Label>
+            <div className="grid grid-cols-4 gap-1">
+              <Button
+                variant={rotation === 0 ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setRotation(0)}
+              >
+                0°
+              </Button>
+              <Button
+                variant={rotation === 90 ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setRotation(90)}
+              >
+                90°
+              </Button>
+              <Button
+                variant={rotation === 180 ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setRotation(180)}
+              >
+                180°
+              </Button>
+              <Button
+                variant={rotation === 270 ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setRotation(270)}
+              >
+                270°
+              </Button>
+            </div>
+          </div>
+
+          {/* Flip controls */}
+          <div>
+            <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+              Flip
+            </Label>
+            <div className="grid grid-cols-2 gap-1">
+              <Button
+                variant={flipH ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setFlipH(!flipH)}
+              >
+                <FlipHorizontal size={12} />
+              </Button>
+              <Button
+                variant={flipV ? "default" : "outline"}
+                size="sm"
+                className="h-7 text-xs px-1"
+                onClick={() => setFlipV(!flipV)}
+              >
+                <FlipVertical size={12} />
+              </Button>
             </div>
           </div>
 

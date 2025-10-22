@@ -240,6 +240,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
     niivueRef.current.updateGLVolume();
   }, [contrastMin, contrastMax])
 
+
   // Render error state
   if (error) {
     return (
@@ -333,7 +334,8 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
         
         {/* Opacity control */}
         <div className="flex items-center gap-1 mr-2">
-          <Layers size={18} className="text-gray-500 dark:text-gray-400" />
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mr-1 px-2">Opacity</span>
+          <Layers size={16} className="text-gray-500 dark:text-gray-400" />
           <Slider
             min={0}
             max={1}
@@ -344,44 +346,51 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
           />
         </div>
         
+        <Separator orientation="vertical" className="h-6 mx-1" />
+        
         {/* Clip plane toggle */}
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={cn(
-                  "p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700",
-                  isClipPlaneEnabled && "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
-                )}
-                onClick={() => setIsClipPlaneEnabled(!isClipPlaneEnabled)}
-              >
-                <Maximize size={18} />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Toggle Clip Plane</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <div className="flex items-center gap-1 mr-2">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mr-1 px-2">Clip Plane</span>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={cn(
+                    "p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700",
+                    isClipPlaneEnabled && "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+                  )}
+                  onClick={() => setIsClipPlaneEnabled(!isClipPlaneEnabled)}
+                >
+                  <Maximize size={18} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Toggle Clip Plane</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         
         <Separator orientation="vertical" className="h-6 mx-1" />
         
         {/* Color & contrast popover */}
-        <Popover>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <Palette size={18} />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Color Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+        <div className="flex items-center gap-1 mr-2">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mr-1 px-2">Colors</span>
+          <Popover>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <Palette size={18} />
+                    </button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Color Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           <PopoverContent className="w-80 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
             <div className="space-y-4">
               <h4 className="font-medium">Color Settings</h4>
@@ -446,25 +455,28 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </div>
             </div>
           </PopoverContent>
-        </Popover>
+          </Popover>
+        </div>
         
         {/* Display options popover */}
-        <Popover>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <Settings size={18} />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Display Options</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <PopoverContent className="w-60 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mr-1 px-2">Display</span>
+          <Popover>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <PopoverTrigger asChild>
+                    <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
+                      <Settings size={18} />
+                    </button>
+                  </PopoverTrigger>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Display Options</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          <PopoverContent className="w-72 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
             <div className="space-y-3">
               <h4 className="font-medium">Display Options</h4>
               
@@ -491,7 +503,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </div>
               
               <div className="flex items-center justify-between">
-                <Label htmlFor="crosshair-toggle" className="text-gray-600 text-sm">
+                <Label htmlFor="crosshair-toggle" className="text-gray-600 dark:text-gray-400 text-sm">
                   Show Crosshair
                 </Label>
                 <Switch
@@ -502,7 +514,8 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </div>
             </div>
           </PopoverContent>
-        </Popover>
+          </Popover>
+        </div>
       </div>
       
       {/* Canvas container */}

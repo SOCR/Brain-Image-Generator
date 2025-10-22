@@ -43,6 +43,9 @@ export default function ImageViewer({
   const [brightness, setBrightness] = useState(1.0)
   const [contrast, setContrast] = useState(1.0)
   const [zoom, setZoom] = useState(1.0)
+  const [rotation, setRotation] = useState(0)
+  const [flipH, setFlipH] = useState(false)
+  const [flipV, setFlipV] = useState(false)
 
   // Set first available type when images change
   useEffect(() => {
@@ -88,10 +91,16 @@ export default function ImageViewer({
           brightness={brightness}
           contrast={contrast}
           zoom={zoom}
+          rotation={rotation}
+          flipH={flipH}
+          flipV={flipV}
           onColormapChange={setColormap}
           onBrightnessChange={setBrightness}
           onContrastChange={setContrast}
           onZoomChange={setZoom}
+          onRotationChange={setRotation}
+          onFlipHChange={setFlipH}
+          onFlipVChange={setFlipV}
           controlsOnly={true}
         />
         
@@ -118,6 +127,9 @@ export default function ImageViewer({
                     brightness={brightness}
                     contrast={contrast}
                     zoom={zoom}
+                    rotation={rotation}
+                    flipH={flipH}
+                    flipV={flipV}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
@@ -158,10 +170,16 @@ export default function ImageViewer({
                 brightness={brightness}
                 contrast={contrast}
                 zoom={zoom}
+                rotation={rotation}
+                flipH={flipH}
+                flipV={flipV}
                 onColormapChange={setColormap}
                 onBrightnessChange={setBrightness}
                 onContrastChange={setContrast}
                 onZoomChange={setZoom}
+                onRotationChange={setRotation}
+                onFlipHChange={setFlipH}
+                onFlipVChange={setFlipV}
               />
             ) : (
               <div className="flex items-center justify-center h-full">
