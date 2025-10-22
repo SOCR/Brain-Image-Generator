@@ -39,7 +39,7 @@ def class_embedding(tumour, slice_orientation, slice_location):
     class_label = tumour_class * 9 + orientation_class * 3 + location_class
     return class_label
                   
-def save_images(images, slice_orientation, save_path, user_id=None, project_id=None, model_name=None, params=None):
+def save_images(images, slice_orientation, save_path, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):
     # Define the tags for the images
     tags = ['t1', 't2', 'flair', 'seg']
 
@@ -71,7 +71,8 @@ def save_images(images, slice_orientation, save_path, user_id=None, project_id=N
                 project_id=project_id,
                 folder_name=folder_name,
                 model_name=model_name,
-                parameters=params
+                parameters=params,
+                is_playground=is_playground
             )
             image_urls.append(url)
             
@@ -101,7 +102,7 @@ def save_images(images, slice_orientation, save_path, user_id=None, project_id=N
         
         return image_paths
 
-def inference(model, tumour, slice_orientation, slice_location, save_path, user_id=None, project_id=None):
+def inference(model, tumour, slice_orientation, slice_location, save_path, user_id=None, project_id=None, is_playground=False):
     # Create a params dictionary to record what was used
     params = {
         "tumour": tumour,
@@ -155,6 +156,6 @@ def inference(model, tumour, slice_orientation, slice_location, save_path, user_
         images = (images + 1) / 2.0 * 255.0  # Rescale pixel values
 
     # Save the images and return the filenames
-    image_filenames = save_images(images, slice_orientation, save_path, user_id, project_id, model, params)
+    image_filenames = save_images(images, slice_orientation, save_path, user_id, project_id, model, params, is_playground)
 
     return image_filenames

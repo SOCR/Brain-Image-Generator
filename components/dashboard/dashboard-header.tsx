@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface DashboardHeaderProps {
-  user: User;
+  user: User | null;
   showProjectSelector: boolean;
   currentProject?: Project;
 }
@@ -84,52 +84,67 @@ export function DashboardHeader({
           </Button>
         )}
 
-        {/* User menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="rounded-full">
-              <Avatar className="h-8 w-8">
-                {user.user_metadata?.avatar_url ? (
-                  <AvatarImage src={user.user_metadata.avatar_url} alt={user.email || 'User'} />
-                ) : (
-                  <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold">
-                    {user.email?.[0].toUpperCase() || 'U'}
-                  </AvatarFallback>
-                )}
-              </Avatar>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium">{user.user_metadata?.name || 'User'}</p>
-                <p className="text-xs text-muted-foreground truncate">{user.email}</p>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <UserIcon className="mr-2 h-4 w-4" />
-              <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              <span>Documentation</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <form action={signOutAction} className="w-full">
-              <DropdownMenuItem asChild>
-                <button type="submit" className="w-full flex cursor-pointer items-center">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sign out</span>
-                </button>
+        {/* User menu or Auth buttons */}
+        {user ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="rounded-full">
+                <Avatar className="h-8 w-8">
+                  {user.user_metadata?.avatar_url ? (
+                    <AvatarImage src={user.user_metadata.avatar_url} alt={user.email || 'User'} />
+                  ) : (
+                    <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold">
+                      {user.email?.[0].toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{user.user_metadata?.name || 'User'}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>
+                <UserIcon className="mr-2 h-4 w-4" />
+                <span>Profile</span>
               </DropdownMenuItem>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <DropdownMenuItem>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                <span>Documentation</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <form action={signOutAction} className="w-full">
+                <DropdownMenuItem asChild>
+                  <button type="submit" className="w-full flex cursor-pointer items-center">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sign out</span>
+                  </button>
+                </DropdownMenuItem>
+              </form>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link href="/sign-in">
+              <Button variant="ghost" size="sm">
+                Sign In
+              </Button>
+            </Link>
+            <Link href="/sign-up">
+              <Button variant="default" size="sm">
+                Sign Up
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );

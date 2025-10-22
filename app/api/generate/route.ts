@@ -3,18 +3,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 }
-      );
-    }
-    
     const body = await request.json();
-    const { user_id, project_id, model_name, n_images = 1, params } = body;
+    const { user_id, project_id, model_name, n_images = 1, params, is_playground = false } = body;
+    
+    // Check authentication only if not in playground mode
+    if (!is_playground) {
+      const supabase = await createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        return NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        );
+      }
+    }
     
     if (!user_id || !project_id || !model_name) {
       return NextResponse.json(
@@ -36,7 +39,8 @@ export async function POST(request: NextRequest) {
         project_id,
         model_name,
         n_images,
-        params
+        params,
+        is_playground
       })
     });
     

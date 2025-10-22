@@ -9,7 +9,7 @@ import os
 import nibabel as nib
 
 
-def save_images(generated_image, save_path, resolution, user_id=None, project_id=None, model_name=None, params=None):
+def save_images(generated_image, save_path, resolution, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):
     unique_id = uuid.uuid4().hex
     if(resolution == "32"):
       folder_name = f"{'mri32'}_{unique_id}"
@@ -32,7 +32,8 @@ def save_images(generated_image, save_path, resolution, user_id=None, project_id
             project_id=project_id,
             folder_name=folder_name,
             model_name=model_name,
-            parameters=params
+            parameters=params,
+            is_playground=is_playground
         )
         
         return url
@@ -54,7 +55,7 @@ def save_images(generated_image, save_path, resolution, user_id=None, project_id
   
 
 
-def inference(model, resolution, save_path, user_id=None, project_id=None):
+def inference(model, resolution, save_path, user_id=None, project_id=None, is_playground=False):
     # torch.manual_seed(1)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -104,7 +105,7 @@ def inference(model, resolution, save_path, user_id=None, project_id=None):
     # Create a params dictionary to record what was used
     params = {"resolution": resolution}
     
-    image_path = save_images(generated_image, save_path, resolution, user_id, project_id, model, params)
+    image_path = save_images(generated_image, save_path, resolution, user_id, project_id, model, params, is_playground)
     
     # return image_filenames
     return image_path

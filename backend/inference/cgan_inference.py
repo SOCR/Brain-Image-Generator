@@ -17,7 +17,7 @@ except Exception as e:
     print(f"Diffusers import failed: {str(e)}")
     DIFFUSERS_AVAILABLE = False
 
-def save_images(images, save_path, user_id=None, project_id=None, model_name=None, params=None):
+def save_images(images, save_path, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):
     # Define the tags for the images
     tags = ['t1', 't2', 'flair', 'seg']
 
@@ -45,7 +45,8 @@ def save_images(images, save_path, user_id=None, project_id=None, model_name=Non
                 project_id=project_id,
                 folder_name=folder_name,
                 model_name=model_name,
-                parameters=params
+                parameters=params,
+                is_playground=is_playground
             )
             image_urls.append(url)
             
@@ -70,7 +71,7 @@ def save_images(images, save_path, user_id=None, project_id=None, model_name=Non
         
         return image_paths
 
-def inference_diffuser(save_path, user_id=None, project_id=None):
+def inference_diffuser(save_path, user_id=None, project_id=None, is_playground=False):
     if not DIFFUSERS_AVAILABLE:
         print("Warning: The diffusers library could not be imported due to compatibility issues with PyTorch.")
         print("To use this model, please upgrade PyTorch or downgrade diffusers.")
@@ -134,12 +135,12 @@ def inference_diffuser(save_path, user_id=None, project_id=None):
     image_processed = image_processed.numpy().astype(np.uint8)
 
     # Save the images and return the filenames
-    image_filenames = save_images(image_processed, save_path, user_id, project_id)
+    image_filenames = save_images(image_processed, save_path, user_id, project_id, None, None, is_playground)
 
     return image_filenames
 
 
-def inference(tumour, model, save_path, user_id=None, project_id=None):
+def inference(tumour, model, save_path, user_id=None, project_id=None, is_playground=False):
     # Create a params dictionary to record what was used
     params = {"tumour": tumour}
     
@@ -188,7 +189,7 @@ def inference(tumour, model, save_path, user_id=None, project_id=None):
         images = (images + 1) / 2.0 * 255.0  # Rescale pixel values
 
     # Save the images and return the filenames
-    image_filenames = save_images(images, save_path, user_id, project_id, model, params)
+    image_filenames = save_images(images, save_path, user_id, project_id, model, params, is_playground)
 
     return image_filenames
 

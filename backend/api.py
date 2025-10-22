@@ -42,6 +42,7 @@ class ImageGenerationRequest(BaseModel):
     model_name: str
     n_images: int = 1
     params: Dict[str, Any]
+    is_playground: bool = False
 
 class ImageGenerationResponse(BaseModel):
     image_paths: List[Union[str, List[str]]]
@@ -67,7 +68,8 @@ async def generate_images(request: ImageGenerationRequest):
             request.project_id,
             request.model_name,
             request.n_images,
-            request.params
+            request.params,
+            request.is_playground
         )
         
         # Flatten the result if needed - ensuring we return a consistent format

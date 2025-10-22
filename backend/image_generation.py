@@ -17,7 +17,7 @@ def sanitize_filename(filename):
     return filename
 
 
-def generate_image(user_id, project_id, model_name, n_images, params):
+def generate_image(user_id, project_id, model_name, n_images, params, is_playground=False):
     try:
         # Create user directory if it doesn't exist
         user_id = sanitize_filename(user_id)
@@ -37,28 +37,28 @@ def generate_image(user_id, project_id, model_name, n_images, params):
             try:
                 if model_name == "braingen_GAN_seg_TCGA_v1 (2D)":
                     tumour = params["tumour"]
-                    image_path = cgv1.inference(tumour, model_name, save_path, user_id, project_id)
+                    image_path = cgv1.inference(tumour, model_name, save_path, user_id, project_id, is_playground)
 
                 elif model_name == "braingen_diffuser_BraTS_v1 (2D)":
-                    image_path = cgv1.inference_diffuser(save_path, user_id, project_id)
+                    image_path = cgv1.inference_diffuser(save_path, user_id, project_id, is_playground)
 
                 elif model_name == "braingen_cGAN_Multicontrast_BraTS_v1 (2D)" or model_name == "braingen_cGAN_Multicontrast_seg_BraTS_v1 (2D)":
                     tumour = params["tumour"]
                     slice_orientation = params["slice_orientation"]
                     slice_location = params["slice_location"]
 
-                    image_path = cgv2.inference(model_name, tumour, slice_orientation, slice_location, save_path, user_id, project_id)
+                    image_path = cgv2.inference(model_name, tumour, slice_orientation, slice_location, save_path, user_id, project_id, is_playground)
 
                 elif model_name == "braingen_WaveletGAN_Multicontrast_BraTS_v1 (2D)":
                     tumour = params["tumour"]
                     slice_orientation = params["slice_orientation"]
                     slice_location = params["slice_location"]
 
-                    image_path = wg.inference(model_name, tumour, slice_orientation, slice_location, save_path, user_id, project_id)
+                    image_path = wg.inference(model_name, tumour, slice_orientation, slice_location, save_path, user_id, project_id, is_playground)
 
                 elif model_name == "braingen_gan3d_BraTS_64_v1 (3D)":
                     resolution = params["resolution"]
-                    image_path = gan3d.inference(model_name, resolution, save_path, user_id, project_id)
+                    image_path = gan3d.inference(model_name, resolution, save_path, user_id, project_id, is_playground)
                 else:
                     image_path = ""
                     print("Wrong model called for inference")

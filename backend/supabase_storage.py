@@ -62,7 +62,7 @@ def add_to_database(file_url, user_id, project_id, model_name, parameters_used, 
         print(f"Error inserting record to database: {str(e)}")
         return None
 
-def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_name, bucket_name="images", model_name=None, parameters=None):
+def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_name, bucket_name="images", model_name=None, parameters=None, is_playground=False):
     """
     Upload an image to Supabase Storage and record it in the database
     
@@ -75,6 +75,7 @@ def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_n
         bucket_name: Supabase bucket name
         model_name: Name of the ML model used
         parameters: Parameters used for generation
+        is_playground: If True, skip database insertion
         
     Returns:
         URL of the uploaded file
@@ -107,8 +108,8 @@ def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_n
         # Get public URL
         file_url = supabase.storage.from_(bucket_name).get_public_url(path)
         
-        # Add record to database if we have a model name
-        if model_name:
+        # Add record to database if we have a model name and NOT in playground mode
+        if model_name and not is_playground:
             # Create a meaningful image name
             image_name = f"{os.path.splitext(filename)[0]} - {folder_name}"
             
@@ -121,8 +122,10 @@ def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_n
                 parameters_used=parameters or {},
                 image_name=image_name
             )
-            
-        return id
+            return id
+        
+        # For playground mode, return the file URL directly
+        return file_url
     except Exception as e:
         print(f"Error uploading to Supabase: {str(e)}")
         # Create local fallback storage and return local path 
@@ -137,9 +140,12 @@ def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_n
         
         return local_path
 
-def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_name, bucket_name="volumes", model_name=None, parameters=None):
+def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_name, bucket_name="volumes", model_name=None, parameters=None, is_playground=False):
     """
     Upload a NIFTI file to Supabase Storage and record it in the database
+    
+    Args:
+        is_playground: If True, skip database insertion
     """
     # Create path for the file
     path = f"{user_id}/{project_id}/{folder_name}/{filename}"
@@ -171,8 +177,8 @@ def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_n
         # Get public URL
         file_url = supabase.storage.from_(bucket_name).get_public_url(path)
         
-        # Add record to database if we have a model name
-        if model_name:
+        # Add record to database if we have a model name and NOT in playground mode
+        if model_name and not is_playground:
             # Create a meaningful image name
             image_name = f"3D Volume - {folder_name}"
             
@@ -185,8 +191,10 @@ def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_n
                 parameters_used=parameters or {},
                 image_name=image_name
             )
+            return id
         
-        return id
+        # For playground mode, return the file URL directly
+        return file_url
     except Exception as e:
         print(f"Error uploading NIFTI to Supabase: {str(e)}")
         # Create local fallback storage and return local path
