@@ -420,7 +420,10 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
                   Contrast Range
                 </Label>
                 <div className="flex gap-3 items-center">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMin.toFixed(1)}</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Min</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMin.toFixed(1)}</span>
+                  </div>
                   <Slider
                     min={volumeRanges[0]}
                     max={volumeRanges[1]}
@@ -430,10 +433,16 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
                       setContrastMin(min);
                       setContrastMax(max);
                     }}
-                    className="flex-1 h-4"
+                    className="flex-1 h-6"
                   />
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMax.toFixed(1)}</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-0.5">Max</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMax.toFixed(1)}</span>
+                  </div>
                 </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-center">
+                  Drag both handles to adjust range
+                </p>
               </div>
             </div>
           </PopoverContent>
