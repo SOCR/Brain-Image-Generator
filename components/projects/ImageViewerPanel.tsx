@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import NiiVueViewer from '@/components/projects/NiiVueViewer'
 import ColorMappedImage from '@/components/projects/ColorMappedImage'
+import { GeneratingTextEffect } from '@/components/projects/GeneratingTextEffect'
 
 // Define image types
 type ImageType = 't1' | 't2' | 'flair' | 'seg' | 't1ce'
@@ -75,10 +76,17 @@ export default function ImageViewerPanel({
     if (isGenerating) {
       return (
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-gray-400 dark:text-gray-500" />
-            <p className="text-gray-500 dark:text-gray-400">Generating {numImages} image set{numImages > 1 ? 's' : ''}...</p>
-            <p className="text-gray-400 dark:text-gray-500 text-sm mt-2">This may take a moment</p>
+          <div className="text-center space-y-8">
+            <div className="flex justify-center">
+              <div className="relative">
+                <Brain className="h-16 w-16 text-indigo-500 dark:text-indigo-400 animate-pulse" />
+                <div className="absolute inset-0 bg-indigo-500/20 dark:bg-indigo-400/20 blur-xl animate-pulse" />
+              </div>
+            </div>
+            <GeneratingTextEffect />
+            <p className="text-gray-400 dark:text-gray-500 text-sm">
+              Generating {numImages} image set{numImages > 1 ? 's' : ''}
+            </p>
           </div>
         </div>
       )

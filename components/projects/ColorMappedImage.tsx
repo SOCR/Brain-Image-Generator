@@ -7,7 +7,7 @@ import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { Palette, BarChart3, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
+import { Palette, BarChart3, ZoomIn, ZoomOut, Maximize2, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ColorMappedImageProps {
@@ -406,7 +406,7 @@ export default function ColorMappedImage({
         />
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
-            <div className="text-xs text-gray-400 dark:text-gray-500">Loading...</div>
+            <Loader2 className="h-6 w-6 animate-spin text-indigo-500 dark:text-indigo-400" />
           </div>
         )}
       </div>
@@ -573,7 +573,10 @@ export default function ColorMappedImage({
         style={{ cursor: zoom > 1.0 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
       >
         {isLoading ? (
-          <div className="text-gray-400 dark:text-gray-500">Loading...</div>
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="h-10 w-10 animate-spin text-indigo-500 dark:text-indigo-400" />
+            <span className="text-sm text-gray-500 dark:text-gray-400">Loading image...</span>
+          </div>
         ) : (
           <canvas
             ref={canvasRef}
