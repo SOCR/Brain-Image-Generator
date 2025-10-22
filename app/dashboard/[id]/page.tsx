@@ -15,17 +15,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
   // Await params first (Next.js 15 requirement)
   const { id } = await params;
   
-  console.log('=== PAGE DEBUG ===');
-  console.log('Page ID:', id);
-  
   // Check if this is playground mode BEFORE checking auth
   const isPlayground = id === 'playground';
   
-  console.log('Is playground (page):', isPlayground);
-  
   if (isPlayground) {
-    console.log('✅ Rendering playground page');
-    console.log('========================');
     // Playground mode - no auth required
     const playgroundProject = {
       id: 'playground',
@@ -34,6 +27,7 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
       user_id: 'guest',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+      settings: {},
     };
 
     return (
@@ -62,15 +56,11 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
 
   // Normal project mode - auth required
   // Only check auth if NOT playground
-  console.log('🔒 Not playground - checking auth');
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   
-  console.log('Has session:', !!session);
-  
   try {
     if (!session) {
-      console.log('❌ No session - redirecting to sign-in');
       redirect('/sign-in');
     }
 

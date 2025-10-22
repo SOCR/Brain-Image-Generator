@@ -7163,3 +7163,118 @@ RawContentLength  : 76
 
 ---
 
+## 🎉 **Perfect! Deployment Successful!**
+
+The health check returned:
+```json
+{
+  "status": "healthy",
+  "service": "SOCR Image Generation API", 
+  "version": "1.0.0"
+}
+```
+
+Your updated backend is **live and healthy**! ✅
+
+---
+
+Let me also fix that double `https://` bug in the deployment script:
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: backend/deploy-to-lightsail.bat</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -153,8 +153,8 @@
+  echo.
+  echo Your updated API is now available at:
+- echo https://!URL!
++ echo !URL!
+  echo.
+- echo Health check: https://!URL!/health
+- echo API docs: https://!URL!/docs
++ echo Health check: !URL!/health
++ echo API docs: !URL!/docs
+  echo.
+  echo Image deployed: %IMAGE_REF%
+```
+
+</details>
+
+---
+
+Tool use: **search_replace**
+
+
+<details><summary>Edit file: backend/deploy-to-lightsail.sh</summary>
+
+**Chunk 1**
+Lines added: 3, lines removed: 3
+
+```diff
+@@ -129,7 +129,7 @@
+  echo -e "${GREEN}========================================${NC}"
+  echo -e "\nYour updated API is now available at:"
+- echo -e "${BLUE}https://$URL${NC}"
+- echo -e "\nHealth check: ${BLUE}https://$URL/health${NC}"
+- echo -e "API docs: ${BLUE}https://$URL/docs${NC}"
++ echo -e "${BLUE}$URL${NC}"
++ echo -e "\nHealth check: ${BLUE}$URL/health${NC}"
++ echo -e "API docs: ${BLUE}$URL/docs${NC}"
+  echo -e "\nImage deployed: ${IMAGE_REF}"
+  echo ""
+```
+
+</details>
+
+---
+
+<think><details><summary>Thought Process</summary>Good, I fixed the double https:// bug. Now the URLs will display correctly next time the user runs the script.
+
+The backend is deployed and working. Now the user is ready to deploy the frontend to Vercel. Let me check if they want to proceed with that.</details></think>
+
+---
+
+Perfect! Fixed the double `https://` bug. 
+
+## ✅ **Summary - Backend Deployment Complete!**
+
+Your backend is now:
+- ✅ **Built** with CPU-only PyTorch (smaller image)
+- ✅ **Pushed** to AWS ECR
+- ✅ **Deployed** to Lightsail
+- ✅ **Live** and responding to requests
+- ✅ **Healthy** (health check passing)
+
+**Backend URL:**
+```
+https://socr-image-gen-backend.nvtcqyjt0g9ej.us-east-1.cs.amazonlightsail.com
+```
+
+---
+
+## 🚀 **Ready for Vercel Deployment!**
+
+Now let's deploy your frontend to Vercel:
+
+1. **Go to** https://vercel.com and sign in
+2. **Click** "New Project"
+3. **Import** your GitHub repository
+4. **Add environment variables:**
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+   NEXT_PUBLIC_BACKEND_URL=https://socr-image-gen-backend.nvtcqyjt0g9ej.us-east-1.cs.amazonlightsail.com
+   ```
+5. **Click** "Deploy"
+
+Should I help you with anything else for the Vercel deployment? 🎯
+
+---
+
