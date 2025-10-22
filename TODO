@@ -1,6 +1,6 @@
 associate each image with the model used ot generate it. 
 organise images generated in batches together
 update the backend to support large number of image generation
-dark mode not consistant
+dark mode not consistant - done
 3d volume rendering - works in production, local dev mode issue with Next.js Fast Refresh & WebGL
 opacity settings - works in production, use prod build for testing

@@ -7,6 +7,7 @@ import { ProjectSwitcher } from './project-switcher';
 import { HelpCircle, ExternalLink, LogOut, Settings, User as UserIcon, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
+import { signOutAction } from '@/app/actions';
 
 // shadcn components
 import { Button } from "@/components/ui/button";
@@ -119,7 +120,7 @@ export function DashboardHeader({
               <span>Documentation</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <form action="/auth/signout" method="post" className="w-full">
+            <form action={signOutAction} className="w-full">
               <DropdownMenuItem asChild>
                 <button type="submit" className="w-full flex cursor-pointer items-center">
                   <LogOut className="mr-2 h-4 w-4" />
