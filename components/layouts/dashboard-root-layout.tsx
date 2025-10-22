@@ -17,9 +17,9 @@ export function DashboardRootLayout({ user, children }: DashboardRootLayoutProps
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Fixed position header - NO extra padding/margin */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200">
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         {/* Global header with profile and general app navigation */}
         <DashboardHeader 
           user={user}

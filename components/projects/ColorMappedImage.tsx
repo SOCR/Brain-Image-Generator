@@ -122,7 +122,7 @@ export default function ColorMappedImage({
   const imageRef = useRef<HTMLImageElement | null>(null)
   
   // Use controlled or uncontrolled state
-  const [internalColorMap, setInternalColorMap] = useState<ColorMap>('gray')
+  const [internalColorMap, setInternalColorMap] = useState<ColorMap>('magma')
   const [internalBrightness, setInternalBrightness] = useState(1.0)
   const [internalContrast, setInternalContrast] = useState(1.0)
   const [internalZoom, setInternalZoom] = useState(1.0)
@@ -283,15 +283,15 @@ export default function ColorMappedImage({
   // Controls only mode (for grid view shared controls)
   if (controlsOnly) {
     return (
-      <div className="absolute left-4 top-4 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-3 space-y-4 w-48 z-20">
+      <div className="absolute left-4 top-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 space-y-4 w-48 z-20">
         <div className="flex items-center gap-2">
-          <Palette size={16} className="text-gray-500" />
-          <span className="text-xs font-medium text-gray-700">Shared Controls</span>
+          <Palette size={16} className="text-gray-500 dark:text-gray-400" />
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Shared Controls</span>
         </div>
-        
+
         {/* Colormap selector */}
         <div>
-          <Label htmlFor="colormap-select-grid" className="text-xs text-gray-600 mb-1.5 block">
+          <Label htmlFor="colormap-select-grid" className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
             Colormap
           </Label>
           <Select value={colorMap} onValueChange={(v) => setColorMap(v as ColorMap)}>
@@ -314,7 +314,7 @@ export default function ColorMappedImage({
 
         {/* Brightness slider */}
         <div>
-          <Label className="text-xs text-gray-600 mb-1.5 block">
+          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
             Brightness
           </Label>
           <Slider
@@ -325,12 +325,12 @@ export default function ColorMappedImage({
             onValueChange={(v) => setBrightness(v[0])}
             className="w-full"
           />
-          <span className="text-xs text-gray-500 mt-0.5 block">{brightness.toFixed(2)}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block">{brightness.toFixed(2)}</span>
         </div>
 
         {/* Contrast slider */}
         <div>
-          <Label className="text-xs text-gray-600 mb-1.5 block">
+          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
             Contrast
           </Label>
           <Slider
@@ -341,12 +341,12 @@ export default function ColorMappedImage({
             onValueChange={(v) => setContrast(v[0])}
             className="w-full"
           />
-          <span className="text-xs text-gray-500 mt-0.5 block">{contrast.toFixed(2)}</span>
+          <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block">{contrast.toFixed(2)}</span>
         </div>
 
         {/* Zoom controls */}
         <div>
-          <Label className="text-xs text-gray-600 mb-1.5 block">
+          <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
             Zoom
           </Label>
           <div className="flex items-center gap-2">
@@ -378,7 +378,7 @@ export default function ColorMappedImage({
             </Button>
           </div>
           <div className="flex items-center justify-between mt-1">
-            <span className="text-xs text-gray-500">{zoom.toFixed(2)}x</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{zoom.toFixed(2)}x</span>
             {zoom !== 1.0 && (
               <Button
                 variant="ghost"
@@ -405,8 +405,8 @@ export default function ColorMappedImage({
           className="w-full h-full object-contain"
         />
         {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-            <div className="text-xs text-gray-400">Loading...</div>
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-800">
+            <div className="text-xs text-gray-400 dark:text-gray-500">Loading...</div>
           </div>
         )}
       </div>
@@ -438,15 +438,15 @@ export default function ColorMappedImage({
     <div className={cn("relative w-full h-full flex", className)}>
       {/* Floating left toolbar */}
       {showControls && !isLoading && (
-        <div className="absolute left-4 top-4 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-3 space-y-4 w-48">
+        <div className="absolute left-4 top-4 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 space-y-4 w-48">
           <div className="flex items-center gap-2">
-            <Palette size={16} className="text-gray-500" />
-            <span className="text-xs font-medium text-gray-700">Controls</span>
+            <Palette size={16} className="text-gray-500 dark:text-gray-400" />
+            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Controls</span>
           </div>
-          
+
           {/* Colormap selector */}
           <div>
-            <Label htmlFor="colormap-select" className="text-xs text-gray-600 mb-1.5 block">
+            <Label htmlFor="colormap-select" className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
               Colormap
             </Label>
             <Select value={colorMap} onValueChange={(v) => setColorMap(v as ColorMap)}>
@@ -469,7 +469,7 @@ export default function ColorMappedImage({
 
           {/* Brightness slider */}
           <div>
-            <Label className="text-xs text-gray-600 mb-1.5 block">
+            <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
               Brightness
             </Label>
             <Slider
@@ -480,12 +480,12 @@ export default function ColorMappedImage({
               onValueChange={(v) => setBrightness(v[0])}
               className="w-full"
             />
-            <span className="text-xs text-gray-500 mt-0.5 block">{brightness.toFixed(2)}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block">{brightness.toFixed(2)}</span>
           </div>
 
           {/* Contrast slider */}
           <div>
-            <Label className="text-xs text-gray-600 mb-1.5 block">
+            <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
               Contrast
             </Label>
             <Slider
@@ -496,12 +496,12 @@ export default function ColorMappedImage({
               onValueChange={(v) => setContrast(v[0])}
               className="w-full"
             />
-            <span className="text-xs text-gray-500 mt-0.5 block">{contrast.toFixed(2)}</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 block">{contrast.toFixed(2)}</span>
           </div>
 
           {/* Zoom controls */}
           <div>
-            <Label className="text-xs text-gray-600 mb-1.5 block">
+            <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
               Zoom
             </Label>
             <div className="flex items-center gap-2">
@@ -533,7 +533,7 @@ export default function ColorMappedImage({
               </Button>
             </div>
             <div className="flex items-center justify-between mt-1">
-              <span className="text-xs text-gray-500">{zoom.toFixed(2)}x</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{zoom.toFixed(2)}x</span>
               {zoom !== 1.0 && (
                 <Button
                   variant="ghost"
@@ -550,7 +550,7 @@ export default function ColorMappedImage({
 
           {/* Colorbar toggle */}
           <div className="flex items-center justify-between pt-2 border-t">
-            <Label htmlFor="colorbar-toggle" className="text-xs text-gray-600 cursor-pointer">
+            <Label htmlFor="colorbar-toggle" className="text-xs text-gray-600 dark:text-gray-400 cursor-pointer">
               Show Colorbar
             </Label>
             <Switch
@@ -563,9 +563,9 @@ export default function ColorMappedImage({
       )}
 
       {/* Main image area */}
-      <div 
+      <div
         ref={containerRef}
-        className="flex-1 flex items-center justify-center bg-gray-50 overflow-hidden"
+        className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-950 overflow-hidden"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -573,12 +573,12 @@ export default function ColorMappedImage({
         style={{ cursor: zoom > 1.0 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
       >
         {isLoading ? (
-          <div className="text-gray-400">Loading...</div>
+          <div className="text-gray-400 dark:text-gray-500">Loading...</div>
         ) : (
           <canvas
             ref={canvasRef}
             className="max-w-full max-h-full object-contain"
-            style={{ 
+            style={{
               transform: `scale(${zoom}) translate(${panOffset.x / zoom}px, ${panOffset.y / zoom}px)`,
               transformOrigin: 'center center',
               transition: isDragging ? 'none' : 'transform 0.2s ease-out',
@@ -590,7 +590,7 @@ export default function ColorMappedImage({
           />
         )}
         {zoom > 1.0 && !isDragging && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 dark:bg-gray-800/70 text-white text-xs px-3 py-1 rounded-full pointer-events-none">
             Click and drag to pan
           </div>
         )}
@@ -598,14 +598,14 @@ export default function ColorMappedImage({
 
       {/* Colorbar on the right */}
       {showControls && !isLoading && showColorbar && (
-        <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg p-3">
+        <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3">
           <div className="flex flex-col items-center gap-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2 mb-2">
-                    <BarChart3 size={14} className="text-gray-500" />
-                    <span className="text-xs font-medium text-gray-700">Scale</span>
+                    <BarChart3 size={14} className="text-gray-500 dark:text-gray-400" />
+                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Scale</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>
@@ -615,18 +615,18 @@ export default function ColorMappedImage({
             </TooltipProvider>
             
             <div className="flex items-center gap-2">
-              <div className="flex flex-col items-end text-xs text-gray-600 gap-1">
+              <div className="flex flex-col items-end text-xs text-gray-600 dark:text-gray-400 gap-1">
                 <span>High</span>
-                <span className="text-[10px] text-gray-400">255</span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">255</span>
               </div>
               <canvas
                 ref={colorbarCanvasRef}
-                className="border border-gray-300 rounded"
+                className="border border-gray-300 dark:border-gray-600 rounded"
                 style={{ width: '30px', height: '200px' }}
               />
-              <div className="flex flex-col items-start text-xs text-gray-600 gap-1">
+              <div className="flex flex-col items-start text-xs text-gray-600 dark:text-gray-400 gap-1">
                 <span>Low</span>
-                <span className="text-[10px] text-gray-400">0</span>
+                <span className="text-[10px] text-gray-400 dark:text-gray-500">0</span>
               </div>
             </div>
           </div>

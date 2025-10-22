@@ -64,34 +64,34 @@ export function ProjectSwitcher({ currentProject }: ProjectSwitcherProps) {
       <PopoverTrigger asChild>
         <Button 
           variant="outline" 
-          className="flex items-center gap-2 h-9 pl-3 pr-2 rounded-md border-gray-200 bg-white hover:bg-gray-50 hover:text-gray-900"
+          className="flex items-center gap-2 h-9 pl-3 pr-2 rounded-md border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
         >
           <Avatar className="h-5 w-5 mr-1">
-            <AvatarFallback className="bg-indigo-100 text-indigo-600 text-xs">
+            <AvatarFallback className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 text-xs">
               {getInitials(currentProject.name)}
             </AvatarFallback>
           </Avatar>
           <span className="text-sm font-medium truncate max-w-[150px]">
             {currentProject.name}
           </span>
-          <ChevronDown className="h-4 w-4 text-gray-500" />
+          <ChevronDown className="h-4 w-4 text-gray-500 dark:text-gray-400" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-56 p-0" align="start">
         <div className="p-2">
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-2 py-1.5">
+          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider px-2 py-1.5">
             Projects
           </h3>
           <div className="mt-1 max-h-60 overflow-y-auto">
             {loading ? (
-              <div className="px-2 py-1.5 text-sm text-gray-500">Loading projects...</div>
+              <div className="px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400">Loading projects...</div>
             ) : (
               projects.map(project => (
                 <Button
                   key={project.id}
                   variant="ghost"
                   className={`w-full justify-start text-left rounded-md px-2 py-1.5 ${
-                    project.id === currentProject.id ? 'bg-gray-100 font-medium' : ''
+                    project.id === currentProject.id ? 'bg-gray-100 dark:bg-gray-800 font-medium' : ''
                   }`}
                   onClick={() => {
                     router.push(`/dashboard/${project.id}`);
@@ -99,7 +99,7 @@ export function ProjectSwitcher({ currentProject }: ProjectSwitcherProps) {
                   }}
                 >
                   <Avatar className="h-5 w-5 mr-2">
-                    <AvatarFallback className="bg-gray-100 text-gray-600 text-xs">
+                    <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs">
                       {getInitials(project.name)}
                     </AvatarFallback>
                   </Avatar>

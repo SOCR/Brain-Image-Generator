@@ -243,11 +243,11 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
   // Render error state
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
+      <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center p-8">
           <div className="text-red-500 mb-4">⚠️</div>
-          <h3 className="text-lg font-medium text-gray-800 mb-2">Error Loading 3D Volume</h3>
-          <p className="text-gray-600">{error}</p>
+          <h3 className="text-lg font-medium text-gray-800 dark:text-gray-200 mb-2">Error Loading 3D Volume</h3>
+          <p className="text-gray-600 dark:text-gray-400">{error}</p>
         </div>
       </div>
     )
@@ -270,16 +270,16 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
-            className={cn(
-              "p-2 rounded hover:bg-gray-100",
-              active && "bg-blue-50 text-blue-600"
-            )}
-            onClick={onClick}
-            {...props}
-          >
-            <Icon size={18} />
-          </button>
+      <button
+        className={cn(
+          "p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700",
+          active && "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
+        )}
+        onClick={onClick}
+        {...props}
+      >
+        <Icon size={18} />
+      </button>
         </TooltipTrigger>
         <TooltipContent>
           <p>{label}</p>
@@ -291,10 +291,10 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
   return (
     <div className="flex flex-col h-full w-full">
       {/* Compact toolbar */}
-      <div className="flex items-center bg-gray-50 border-b py-1 px-2 gap-1">
+      <div className="flex items-center bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 py-1 px-2 gap-1">
         {/* Views label and buttons */}
         <div className="flex items-center mr-2">
-          <span className="text-xs font-medium text-gray-600 mr-2 px-2">Views</span>
+          <span className="text-xs font-medium text-gray-600 dark:text-gray-400 mr-2 px-2">Views</span>
           <div className="flex items-center">
             <IconButton 
               icon={Grid3X3} 
@@ -333,7 +333,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
         
         {/* Opacity control */}
         <div className="flex items-center gap-1 mr-2">
-          <Layers size={18} className="text-gray-500" />
+          <Layers size={18} className="text-gray-500 dark:text-gray-400" />
           <Slider
             min={0}
             max={1}
@@ -350,8 +350,8 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
             <TooltipTrigger asChild>
               <button
                 className={cn(
-                  "p-2 rounded hover:bg-gray-100",
-                  isClipPlaneEnabled && "bg-blue-50 text-blue-600"
+                  "p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700",
+                  isClipPlaneEnabled && "bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400"
                 )}
                 onClick={() => setIsClipPlaneEnabled(!isClipPlaneEnabled)}
               >
@@ -372,7 +372,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
-                  <button className="p-2 rounded hover:bg-gray-100">
+                  <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                     <Palette size={18} />
                   </button>
                 </PopoverTrigger>
@@ -382,16 +382,16 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <PopoverContent className="w-80">
+          <PopoverContent className="w-80 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
             <div className="space-y-4">
               <h4 className="font-medium">Color Settings</h4>
               
               <div>
-                <Label htmlFor="color-map-select" className="text-gray-600 text-sm mb-1 block">
+                <Label htmlFor="color-map-select" className="text-gray-600 dark:text-gray-400 text-sm mb-1 block">
                   Color Map
                 </Label>
                 <Select value={colorMap} onValueChange={setColorMap}>
-                  <SelectTrigger id="color-map-select" className="bg-white">
+                  <SelectTrigger id="color-map-select" className="bg-white dark:bg-gray-800">
                     <SelectValue placeholder="Select color map" />
                   </SelectTrigger>
                   <SelectContent>
@@ -405,7 +405,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </div>
               
               <div className="flex items-center gap-2">
-                <Label htmlFor="colorbar-toggle" className="text-gray-600 text-sm">
+                <Label htmlFor="colorbar-toggle" className="text-gray-600 dark:text-gray-400 text-sm">
                   Show Colorbar
                 </Label>
                 <Switch
@@ -416,11 +416,11 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </div>
               
               <div>
-                <Label className="text-gray-600 text-sm mb-1 block">
+                <Label className="text-gray-600 dark:text-gray-400 text-sm mb-1 block">
                   Contrast Range
                 </Label>
                 <div className="flex gap-3 items-center">
-                  <span className="text-xs text-gray-500">{contrastMin.toFixed(1)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMin.toFixed(1)}</span>
                   <Slider
                     min={volumeRanges[0]}
                     max={volumeRanges[1]}
@@ -432,7 +432,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
                     }}
                     className="flex-1 h-4"
                   />
-                  <span className="text-xs text-gray-500">{contrastMax.toFixed(1)}</span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">{contrastMax.toFixed(1)}</span>
                 </div>
               </div>
             </div>
@@ -445,7 +445,7 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <PopoverTrigger asChild>
-                  <button className="p-2 rounded hover:bg-gray-100">
+                  <button className="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700">
                     <Settings size={18} />
                   </button>
                 </PopoverTrigger>
@@ -455,14 +455,14 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <PopoverContent className="w-60">
+          <PopoverContent className="w-60 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700">
             <div className="space-y-3">
               <h4 className="font-medium">Display Options</h4>
               
-              <div className="flex items-center justify-between">
-                <Label htmlFor="radiological-toggle" className="text-gray-600 text-sm">
-                  Radiological Convention
-                </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="radiological-toggle" className="text-gray-600 dark:text-gray-400 text-sm">
+                      Radiological Convention
+                    </Label>
                 <Switch
                   id="radiological-toggle"
                   checked={isRadiological}
@@ -470,10 +470,10 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
                 />
               </div>
               
-              <div className="flex items-center justify-between">
-                <Label htmlFor="orientation-cube-toggle" className="text-gray-600 text-sm">
-                  Orientation Cube
-                </Label>
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="orientation-cube-toggle" className="text-gray-600 dark:text-gray-400 text-sm">
+                      Orientation Cube
+                    </Label>
                 <Switch
                   id="orientation-cube-toggle"
                   checked={isOrientationCube}
@@ -504,8 +504,8 @@ export default function NiiVueViewer({ niftiUrl, onError }: NiiVueViewerProps) {
         ></canvas>
         
         {/* Loading indicator */}
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-800/20">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-800/20 dark:bg-gray-950/40">
             <div className="bg-white p-4 rounded-lg shadow-lg">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
               <p className="mt-2 text-center text-sm font-medium">Loading volume...</p>

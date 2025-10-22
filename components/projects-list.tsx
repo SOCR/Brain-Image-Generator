@@ -20,9 +20,9 @@ export function ProjectsList({ projects }: ProjectsListProps) {
   if (projects.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 px-4">
-        <div className="w-20 h-20 mb-6 rounded-full bg-gray-100 flex items-center justify-center">
+        <div className="w-20 h-20 mb-6 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
           <svg
-            className="w-10 h-10 text-gray-300"
+            className="w-10 h-10 text-gray-300 dark:text-gray-600"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -35,8 +35,8 @@ export function ProjectsList({ projects }: ProjectsListProps) {
             />
           </svg>
         </div>
-        <h3 className="text-xl font-semibold text-gray-600 mb-2">No projects yet</h3>
-        <p className="text-sm text-gray-400 text-center max-w-sm">
+        <h3 className="text-xl font-semibold text-gray-600 dark:text-gray-400 mb-2">No projects yet</h3>
+        <p className="text-sm text-gray-400 dark:text-gray-500 text-center max-w-sm">
           Create your first project to start generating brain images with AI
         </p>
       </div>

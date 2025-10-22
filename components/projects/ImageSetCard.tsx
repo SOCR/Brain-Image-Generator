@@ -74,15 +74,15 @@ export default function ImageSetCard({
 
       {/* Card Content */}
       <Card className={cn(
-        "relative bg-white rounded-xl border transition-all duration-200 overflow-hidden cursor-pointer",
+        "relative bg-white dark:bg-gray-900 rounded-xl border transition-all duration-200 overflow-hidden cursor-pointer",
         "group-hover:scale-[1.02] group-hover:shadow-md",
-        isHovered ? "border-gray-300 shadow-sm" : "border-gray-200 shadow-sm",
+        isHovered ? "border-gray-300 dark:border-gray-700 shadow-sm" : "border-gray-200 dark:border-gray-800 shadow-sm",
         isDeleting && "opacity-50 pointer-events-none"
       )}
         onClick={() => onView(imageSet)}
       >
         {/* Thumbnail/Preview */}
-        <div className="aspect-video bg-gray-100 relative overflow-hidden">
+        <div className="aspect-video bg-gray-100 dark:bg-gray-800 relative overflow-hidden">
           {imageSet.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -93,16 +93,16 @@ export default function ImageSetCard({
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               {imageSet.dimensionType === '3D' ? (
-                <Box className="h-16 w-16 text-gray-300" />
+                <Box className="h-16 w-16 text-gray-300 dark:text-gray-600" />
               ) : (
-                <Layers className="h-16 w-16 text-gray-300" />
+                <Layers className="h-16 w-16 text-gray-300 dark:text-gray-600" />
               )}
             </div>
           )}
 
           {/* Dimension Badge */}
           <div className="absolute top-2 right-2">
-            <span className="px-2 py-1 text-xs font-medium bg-white/90 backdrop-blur-sm rounded-md border border-gray-200">
+            <span className="px-2 py-1 text-xs font-medium bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-md border border-gray-200 dark:border-gray-700">
               {imageSet.dimensionType}
             </span>
           </div>
@@ -110,11 +110,11 @@ export default function ImageSetCard({
 
         {/* Card Body */}
         <div className="p-4">
-          <h3 className="font-semibold text-gray-900 mb-2 truncate" title={imageSet.name}>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2 truncate" title={imageSet.name}>
             {imageSet.name}
           </h3>
 
-          <div className="space-y-1.5 text-sm text-gray-600 mb-4">
+          <div className="space-y-1.5 text-sm text-gray-600 dark:text-gray-400 mb-4">
             <div className="flex items-center gap-2">
               <Calendar className="h-3.5 w-3.5" />
               <span>{new Date(imageSet.createdAt).toLocaleString()}</span>
@@ -124,7 +124,7 @@ export default function ImageSetCard({
               <span className="truncate" title={imageSet.model}>{imageSet.model}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-500">{imageSet.imageCount} image{imageSet.imageCount > 1 ? 's' : ''}</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{imageSet.imageCount} image{imageSet.imageCount > 1 ? 's' : ''}</span>
             </div>
           </div>
 

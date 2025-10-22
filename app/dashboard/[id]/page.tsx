@@ -24,10 +24,10 @@ export default async function ProjectPage({ params }: ProjectPageProps) {
     return (
       <ProjectLayoutComponent user={session.user} project={project}>
         <Suspense fallback={
-          <div className="flex-1 flex items-center justify-center bg-white">
+          <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-900">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
-              <p className="text-gray-500">Loading generation panel...</p>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 dark:border-gray-100 mx-auto mb-4"></div>
+              <p className="text-gray-500 dark:text-gray-400">Loading generation panel...</p>
             </div>
           </div>
         }>

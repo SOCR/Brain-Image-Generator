@@ -74,9 +74,9 @@ export function ProjectCard({
         className="block"
       >
         <div className={cn(
-          "relative bg-white rounded-xl border transition-all duration-200 overflow-hidden",
+          "relative bg-white dark:bg-gray-900 rounded-xl border transition-all duration-200 overflow-hidden",
           "group-hover:scale-[1.02] group-hover:shadow-md",
-          isHovered ? "border-gray-300 shadow-sm" : "border-gray-200 shadow-sm"
+          isHovered ? "border-gray-300 dark:border-gray-700 shadow-sm" : "border-gray-200 dark:border-gray-800 shadow-sm"
         )}>
           {/* Card content */}
           <div className="relative z-10 p-6">
@@ -85,16 +85,16 @@ export function ProjectCard({
               <div className="flex items-center gap-3">
                 {/* Avatar */}
                 <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-gray-100 text-gray-600 font-semibold">
+                  <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold">
                     {getInitials(project.name)}
                   </AvatarFallback>
                 </Avatar>
 
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 group-hover:text-gray-700 transition-colors">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-gray-700 dark:group-hover:text-gray-300 transition-colors">
                     {project.name}
                   </h3>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     Created {formatDistanceToNow(new Date(project.created_at))} ago
                   </p>
                 </div>
@@ -106,7 +106,7 @@ export function ProjectCard({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    className="h-8 w-8 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
                   >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
@@ -135,18 +135,18 @@ export function ProjectCard({
 
             {/* Description */}
             {project.description && (
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
                 {project.description}
               </p>
             )}
 
             {/* Footer stats */}
-            <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
-              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+            <div className="flex items-center gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                 <ImageIcon className="h-3.5 w-3.5" />
                 <span>0 images</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 dark:text-gray-500">
                 <span>•</span>
                 <span>Updated {formatDistanceToNow(new Date(project.updated_at))} ago</span>
               </div>

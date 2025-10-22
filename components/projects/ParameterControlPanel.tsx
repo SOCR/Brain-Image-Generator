@@ -156,11 +156,11 @@ export default function ParameterControlPanel({
   }
 
   return (
-    <div className="w-96 flex flex-col bg-white border-r border-gray-200">
+    <div className="w-96 flex flex-col bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
       {/* Fixed Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200">
-        <h2 className="text-lg font-semibold text-gray-900">Generation Controls</h2>
-        <p className="text-sm text-gray-500 mt-1">Configure model parameters</p>
+      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Generation Controls</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Configure model parameters</p>
       </div>
 
       {/* Scrollable Middle Section */}
@@ -169,23 +169,23 @@ export default function ParameterControlPanel({
           {/* Model Selection Section */}
           <div className="space-y-4">
             <div>
-              <Label className="text-sm font-medium text-gray-700 mb-2 block">Dimension Type</Label>
+              <Label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Dimension Type</Label>
               <RadioGroup value={dimensionType} onValueChange={setDimensionType} className="flex gap-4">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="2D" id="r1" />
-                  <Label htmlFor="r1" className="text-sm text-gray-700 cursor-pointer">2D</Label>
+                  <Label htmlFor="r1" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">2D</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="3D" id="r2" />
-                  <Label htmlFor="r2" className="text-sm text-gray-700 cursor-pointer">3D</Label>
+                  <Label htmlFor="r2" className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer">3D</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div>
-              <Label htmlFor="model-select" className="text-sm font-medium text-gray-700 mb-2 block">Model</Label>
+              <Label htmlFor="model-select" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Model</Label>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger id="model-select" className="bg-white">
+                <SelectTrigger id="model-select" className="bg-white dark:bg-gray-800">
                   <SelectValue placeholder="Select a model" />
                 </SelectTrigger>
                 <SelectContent>
@@ -202,7 +202,7 @@ export default function ParameterControlPanel({
             </div>
 
             <div>
-              <Label htmlFor="num-images" className="text-sm font-medium text-gray-700 mb-2 block">Number of Images</Label>
+              <Label htmlFor="num-images" className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Number of Images</Label>
               <Input
                 id="num-images"
                 type="number"
@@ -210,18 +210,18 @@ export default function ParameterControlPanel({
                 max="5"
                 value={numImages}
                 onChange={(e) => setNumImages(Math.max(1, Math.min(5, parseInt(e.target.value) || 1)))}
-                className="w-full bg-white"
+                className="w-full bg-white dark:bg-gray-800"
               />
-              <p className="text-xs text-gray-500 mt-1.5">Maximum: 5 images per generation</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">Maximum: 5 images per generation</p>
             </div>
           </div>
 
           {/* Parameters Section */}
           {selectedModel && (
             <>
-              <Separator className="bg-gray-200" />
+              <Separator className="bg-gray-200 dark:bg-gray-700" />
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-gray-900">Model Parameters</h3>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Model Parameters</h3>
                 {renderParameterFields()}
               </div>
             </>
@@ -230,7 +230,7 @@ export default function ParameterControlPanel({
       </div>
 
       {/* Fixed Generate Button at bottom */}
-      <div className="flex-shrink-0 border-t border-gray-200 p-6 bg-gray-50">
+      <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 p-6 bg-gray-50 dark:bg-gray-950">
         <Button
           className="w-full font-medium h-11 shadow-sm bg-gradient-to-r from-[var(--color-1)] via-[var(--color-3)] to-[var(--color-5)] hover:opacity-90 transition-opacity"
           onClick={onGenerate}

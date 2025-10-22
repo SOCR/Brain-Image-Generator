@@ -20,9 +20,9 @@ export function ProjectLayoutComponent({ user, project, children }: ProjectLayou
   ];
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="h-screen flex flex-col bg-gray-50 dark:bg-gray-950 overflow-hidden">
       {/* Fixed header - does not scroll */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200">
+      <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
         {/* Global header with project selector */}
         <DashboardHeader
           user={user}

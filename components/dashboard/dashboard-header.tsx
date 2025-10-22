@@ -48,7 +48,7 @@ export function DashboardHeader({
             <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-2)] via-[var(--color-4)] to-[var(--color-1)] opacity-60 blur-sm"></div>
             <div className="relative z-10 h-6 w-6 rounded-full bg-gradient-to-br from-white/20 to-transparent"></div>
           </div>
-          <span className="font-bold text-xl bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 bg-clip-text text-transparent">
+          <span className="font-bold text-xl bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-gray-100 dark:via-gray-300 dark:to-gray-100 bg-clip-text text-transparent">
             SOCR BrainGen
           </span>
         </Link>
@@ -63,7 +63,7 @@ export function DashboardHeader({
 
       <div className="flex items-center gap-2">
         {/* Documentation/Help links */}
-        <Button variant="ghost" size="icon" className="hidden md:flex text-gray-500 hover:text-gray-700">
+        <Button variant="ghost" size="icon" className="hidden md:flex text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           <HelpCircle className="h-5 w-5" />
         </Button>
 
@@ -73,7 +73,7 @@ export function DashboardHeader({
             variant="ghost"
             size="icon"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            className="text-gray-500 hover:text-gray-700"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
           >
             {theme === 'dark' ? (
               <Sun className="h-5 w-5" />
@@ -91,7 +91,7 @@ export function DashboardHeader({
                 {user.user_metadata?.avatar_url ? (
                   <AvatarImage src={user.user_metadata.avatar_url} alt={user.email || 'User'} />
                 ) : (
-                  <AvatarFallback className="bg-gray-100 text-gray-600 font-semibold">
+                  <AvatarFallback className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-semibold">
                     {user.email?.[0].toUpperCase() || 'U'}
                   </AvatarFallback>
                 )}

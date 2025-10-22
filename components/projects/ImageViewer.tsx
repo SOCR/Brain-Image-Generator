@@ -39,7 +39,7 @@ export default function ImageViewer({
   const [selectedImageType, setSelectedImageType] = useState<ImageType>(defaultType)
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
   // Shared settings for both single and grid view (synced)
-  const [colormap, setColormap] = useState('gray')
+  const [colormap, setColormap] = useState('magma')
   const [brightness, setBrightness] = useState(1.0)
   const [contrast, setContrast] = useState(1.0)
   const [zoom, setZoom] = useState(1.0)
@@ -54,7 +54,7 @@ export default function ImageViewer({
   if (availableTypes.length === 0) {
     return (
       <div className={`flex items-center justify-center ${className}`}>
-        <div className="text-gray-400">No images available</div>
+        <div className="text-gray-400 dark:text-gray-500">No images available</div>
       </div>
     )
   }
@@ -70,7 +70,7 @@ export default function ImageViewer({
               variant="outline"
               size="sm"
               onClick={() => setViewMode('single')}
-              className="bg-white/95 backdrop-blur-sm shadow-lg"
+              className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-lg border-gray-200 dark:border-gray-700"
             >
               <Square size={16} className="mr-2" />
               Single View
@@ -96,7 +96,7 @@ export default function ImageViewer({
         />
         
         {/* Grid layout with left padding for controls */}
-        <div className="h-full w-full bg-gray-50 p-4 pl-60">
+        <div className="h-full w-full bg-gray-50 dark:bg-gray-950 p-4 pl-60">
           <div className={`
             grid gap-4 h-full w-full
             ${availableTypes.length === 1 ? 'grid-cols-1' : ''}
@@ -104,8 +104,8 @@ export default function ImageViewer({
             ${availableTypes.length >= 3 ? 'grid-cols-2 grid-rows-2' : ''}
           `}>
             {availableTypes.map(type => (
-              <div key={type} className="relative bg-white border border-gray-200 rounded-lg overflow-hidden">
-                <div className="absolute top-2 left-2 z-10 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-md shadow text-sm font-medium">
+              <div key={type} className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden">
+                <div className="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-md shadow text-sm font-medium">
                   {IMAGE_TYPE_NAMES[type]}
                 </div>
                 {images[type] ? (
@@ -121,7 +121,7 @@ export default function ImageViewer({
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
-                    <div className="text-gray-400 text-sm">
+                    <div className="text-gray-400 dark:text-gray-500 text-sm">
                       No {IMAGE_TYPE_NAMES[type]} image
                     </div>
                   </div>
@@ -165,7 +165,7 @@ export default function ImageViewer({
               />
             ) : (
               <div className="flex items-center justify-center h-full">
-                <div className="text-gray-400">
+                <div className="text-gray-400 dark:text-gray-500">
                   No {IMAGE_TYPE_NAMES[type]} image available
                 </div>
               </div>
@@ -181,7 +181,7 @@ export default function ImageViewer({
                   variant="outline"
                   size="sm"
                   onClick={() => setViewMode('grid')}
-                  className="bg-white/95 backdrop-blur-sm shadow-lg"
+                  className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-lg border-gray-200 dark:border-gray-700"
                 >
                   <Grid3X3 size={16} className="mr-2" />
                   Grid View
@@ -189,7 +189,7 @@ export default function ImageViewer({
               )}
               
               {/* Tab switcher */}
-              <TabsList className="p-1 bg-white/95 backdrop-blur-sm border border-gray-200 rounded-lg shadow-lg">
+              <TabsList className="p-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
                 {availableTypes.map(type => (
                   <TabsTrigger
                     key={type}

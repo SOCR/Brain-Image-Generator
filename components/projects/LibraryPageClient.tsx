@@ -186,23 +186,23 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
+      <div className="flex-1 flex items-center justify-center bg-gray-50 dark:bg-gray-950">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-gray-400" />
-          <p className="text-gray-500">Loading library...</p>
+          <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4 text-gray-400 dark:text-gray-500" />
+          <p className="text-gray-500 dark:text-gray-400">Loading library...</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50">
+    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950">
       {/* Header with filters */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4">
+      <div className="flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Image Library</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Image Library</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               {filteredSets.length} image set{filteredSets.length !== 1 ? 's' : ''}
             </p>
           </div>
@@ -210,8 +210,8 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
           {imageSets.length > 0 && (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-gray-500" />
-                <Label className="text-sm text-gray-600">Type:</Label>
+                <Filter className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                <Label className="text-sm text-gray-600 dark:text-gray-400">Type:</Label>
                 <Select value={dimensionFilter} onValueChange={(value: any) => setDimensionFilter(value)}>
                   <SelectTrigger className="h-9 w-[100px]">
                     <SelectValue />
@@ -225,7 +225,7 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
               </div>
 
               <div className="flex items-center gap-2">
-                <Label className="text-sm text-gray-600">Sort:</Label>
+                <Label className="text-sm text-gray-600 dark:text-gray-400">Sort:</Label>
                 <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                   <SelectTrigger className="h-9 w-[120px]">
                     <SelectValue />
@@ -248,12 +248,12 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
             <div className="text-center">
               <div className="relative h-16 w-16 mx-auto mb-6">
                 <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[var(--color-1)] via-[var(--color-3)] to-[var(--color-5)] opacity-20"></div>
-                <Filter className="relative h-16 w-16 text-gray-300" />
+                <Filter className="relative h-16 w-16 text-gray-300 dark:text-gray-600" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                 {imageSets.length === 0 ? 'No Images Yet' : 'No Results'}
               </h3>
-              <p className="text-gray-500 max-w-md">
+              <p className="text-gray-500 dark:text-gray-400 max-w-md">
                 {imageSets.length === 0
                   ? 'Generate your first images to populate this library'
                   : 'Try adjusting your filters'}

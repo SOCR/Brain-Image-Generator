@@ -23,19 +23,19 @@ export default async function ProjectSettingsPage({ params }: ProjectSettingsPag
 
     return (
       <ProjectLayoutComponent user={session.user} project={project}>
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
+        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950 p-6">
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Header */}
             <div>
-              <h1 className="text-xl font-semibold text-gray-900">Project Settings</h1>
-              <p className="text-sm text-gray-500 mt-1">Manage your project configuration and preferences</p>
+              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Project Settings</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your project configuration and preferences</p>
             </div>
 
             {/* General Settings */}
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-base font-semibold text-gray-900">General</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Update your project name and description</p>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-800 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-800">
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">General</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Update your project name and description</p>
               </div>
               <div className="p-6">
                 <ProjectForm project={project} />
@@ -43,10 +43,10 @@ export default async function ProjectSettingsPage({ params }: ProjectSettingsPag
             </div>
 
             {/* Danger Zone */}
-            <div className="bg-white rounded-lg border border-red-200 overflow-hidden">
-              <div className="px-6 py-4 border-b border-red-200 bg-red-50">
-                <h2 className="text-base font-semibold text-red-900">Danger Zone</h2>
-                <p className="text-sm text-red-600 mt-0.5">Irreversible actions that affect your project</p>
+            <div className="bg-white dark:bg-gray-900 rounded-lg border border-red-200 dark:border-red-900 overflow-hidden">
+              <div className="px-6 py-4 border-b border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950">
+                <h2 className="text-base font-semibold text-red-900 dark:text-red-400">Danger Zone</h2>
+                <p className="text-sm text-red-600 dark:text-red-400 mt-0.5">Irreversible actions that affect your project</p>
               </div>
               <div className="p-6">
                 <DeleteProjectSection projectId={project.id} />
