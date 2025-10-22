@@ -10723,3 +10723,17 @@ The sign-out functionality should now work correctly! 🎉
 
 ---
 
+_**User (2025-10-21 17:09Z)**_
+
+ok there is another bug. in the dashboard the lis of projects shown is not just  the users butall the users
+
+---
+
+_**Assistant (claude-4.5-sonnet-thinking)**_
+
+<think><details><summary>Thought Process</summary>The user is reporting that in the dashboard, the list of projects shown includes all users' projects instead of just the current user's projects. This is a serious security/privacy issue. I need to find where the projects are being fetched and make sure it's filtering by the current user's ID.
+
+Let me search for where projects are being fetched in the dashboard.</details></think>
+
+---
+

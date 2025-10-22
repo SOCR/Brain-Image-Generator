@@ -6,9 +6,17 @@ export async function getUserProjects() {
 
   const supabase = await createClient();
   
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+  
   const { data: projects, error } = await supabase
     .from('projects')
     .select('*')
+    .eq('user_id', user.id)
     .order('created_at', { ascending: false });
     
   if (error) {
@@ -24,10 +32,18 @@ export async function getProjectById(id: string) {
 
   const supabase = await createClient();
   
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+  
   const { data: project, error } = await supabase
     .from('projects')
     .select('*')
     .eq('id', id)
+    .eq('user_id', user.id)
     .single();
     
   if (error) {
@@ -69,6 +85,13 @@ export async function createProject(projectData: Omit<Project, 'id' | 'created_a
 export async function updateProject(id: string, projectData: Partial<Omit<Project, 'id' | 'created_at' | 'user_id'>>) {
   const supabase = await createClient();
   
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+  
   const { data: project, error } = await supabase
     .from('projects')
     .update({
@@ -76,6 +99,7 @@ export async function updateProject(id: string, projectData: Partial<Omit<Projec
       updated_at: new Date().toISOString()
     })
     .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
     
@@ -91,10 +115,18 @@ export async function updateProject(id: string, projectData: Partial<Omit<Projec
 export async function deleteProject(id: string) {
   const supabase = await createClient();
   
+  // Get the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) {
+    throw new Error('User not authenticated');
+  }
+  
   const { error } = await supabase
     .from('projects')
     .delete()
-    .eq('id', id);
+    .eq('id', id)
+    .eq('user_id', user.id);
     
   if (error) {
     console.error('Error deleting project:', error);
