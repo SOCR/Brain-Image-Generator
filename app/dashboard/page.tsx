@@ -9,11 +9,12 @@ import { redirect } from 'next/navigation';
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
-  const projects = await getUserProjects();
 
   if (!session) {
-    redirect('/sign-in');
+    redirect('/dashboard/playground');
   }
+
+  const projects = await getUserProjects();
 
   return (
     <DashboardRootLayout user={session.user}>

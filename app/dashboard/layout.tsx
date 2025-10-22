@@ -11,22 +11,15 @@ export default async function DashboardLayout({
   const headersList = await headers();
   const isPlaygroundHeader = headersList.get('x-is-playground');
   const isPlayground = isPlaygroundHeader === 'true';
-  
-  console.log('=== LAYOUT DEBUG ===');
-  console.log('x-is-playground header:', isPlaygroundHeader);
-  console.log('Is playground (layout):', isPlayground);
 
   if (!isPlayground) {
     const supabase = await createClient();
     const { data: { session } } = await supabase.auth.getSession();
 
     if (!session) {
-      console.log('❌ Layout: No session - redirecting to sign-in');
-      // Redirect to login page if not authenticated
-      redirect('/sign-in');
+      // Redirect to playground if not authenticated
+      redirect('/dashboard/playground');
     }
-  } else {
-    console.log('✅ Layout: Playground mode - skipping auth check');
   }
 
   return (
