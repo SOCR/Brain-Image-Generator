@@ -52,3 +52,7 @@ backend/inference/model/ddim-brain-128/
 
 # Docker
 backend/deploy.log
+
+.cursor/
+.cursorindexingignore
+.specstory/
