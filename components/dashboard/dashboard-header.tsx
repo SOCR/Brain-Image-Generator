@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { User } from '@supabase/supabase-js';
 import { Project } from '@/types/database';
 import { ProjectSwitcher } from './project-switcher';
@@ -42,13 +43,26 @@ export function DashboardHeader({
   return (
     <header className="h-16 px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
-        {/* Logo with Gradient Orb */}
+        {/* Logo with SOCR Icon and Circular Halo Glow */}
         <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="relative h-8 w-8 rounded-full bg-gradient-to-br from-[var(--color-1)] via-[var(--color-3)] to-[var(--color-5)] flex items-center justify-center shadow-lg">
-            {/* Inner glow effect */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--color-2)] via-[var(--color-4)] to-[var(--color-1)] opacity-60 blur-sm"></div>
-            <div className="relative z-10 h-6 w-6 rounded-full bg-gradient-to-br from-white/20 to-transparent"></div>
+          {/* SOCR Logo with Circular Halo Glow */}
+          <div className="relative h-10 w-10 flex items-center justify-center">
+            {/* Outer glow ring - colorful gradient */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 dark:from-blue-500 dark:via-purple-500 dark:to-pink-500 opacity-50 blur-lg"></div>
+            {/* Middle glow ring */}
+            <div className="absolute inset-1 rounded-full bg-gradient-to-br from-blue-300 via-purple-300 to-pink-300 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 opacity-30 blur-md"></div>
+            {/* Inner glow */}
+            <div className="absolute inset-2 rounded-full bg-white/20 dark:bg-white/10 blur-sm"></div>
+            {/* Logo */}
+            <Image
+              src="/socr.png"
+              alt="SOCR Logo"
+              width={32}
+              height={32}
+              className="relative z-10 drop-shadow-xl"
+            />
           </div>
+          
           <span className="font-bold text-xl bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-gray-100 dark:via-gray-300 dark:to-gray-100 bg-clip-text text-transparent">
             SOCR BrainGen
           </span>

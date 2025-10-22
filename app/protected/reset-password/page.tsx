@@ -15,6 +15,17 @@ export default async function ResetPassword(props: {
       <CardContent className="grid p-0 md:grid-cols-2">
         <form className="p-6 md:p-8 space-y-6">
           <div className="flex flex-col items-center text-center space-y-1">
+            {/* SOCR Logo with Glow */}
+            <div className="relative h-12 w-12 mb-2">
+              <div className="absolute inset-0 bg-blue-500/30 dark:bg-blue-400/30 blur-xl rounded-full"></div>
+              <Image
+                src="/socr.png"
+                alt="SOCR Logo"
+                width={48}
+                height={48}
+                className="relative z-10 drop-shadow-xl"
+              />
+            </div>
             <h1 className="text-2xl font-bold">Reset your password</h1>
             <p className="text-balance text-muted-foreground">
               Please enter your new password below
