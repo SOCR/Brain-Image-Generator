@@ -20,21 +20,19 @@ allowed_origins = []
 
 if frontend_url == "*":
     # Allow all origins (for testing and initial deployment)
-    allowed_origins = ["*"]
-else:
-    # Specific origins for production
-    allowed_origins = [
+        allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
     "https://brain-image-generator.vercel.app",
     "https://ai-bot.statisticalcomputing.org",
-]
-    # allowed_origins = [
-    #    "http://localhost:3000",  # Local development
-    #    frontend_url,  # Your Vercel deployment
-    #]
+# allowed_origins = ["*"]
+else:
+    allowed_origins = [
+       "http://localhost:3000",  # Local development
+       frontend_url,  # Your Vercel deployment
+    ]
 
 app.add_middleware(
     CORSMiddleware,
