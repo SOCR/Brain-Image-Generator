@@ -15,25 +15,34 @@ app = FastAPI(
 # Configure CORS
 # For initial deployment, FRONTEND_URL can be "*" to allow all origins
 # After frontend is deployed, update to your specific Vercel URL for better security
-frontend_url = os.getenv("FRONTEND_URL", "*")
-allowed_origins = []
+# frontend_url = os.getenv("FRONTEND_URL", "*")
+# allowed_origins = []
 
-if frontend_url == "*":
+# if frontend_url == "*":
     # Allow all origins (for testing and initial deployment)
-        allowed_origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:8080",
-    "https://brain-image-generator.vercel.app",
-    "https://ai-bot.statisticalcomputing.org",
-        ]
+#         allowed_origins = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "http://localhost:8080",
+#     "http://127.0.0.1:8080",
+#     "https://brain-image-generator.vercel.app",
+#     "https://ai-bot.statisticalcomputing.org",
+#         ]
 # allowed_origins = ["*"]
-else:
-    allowed_origins = [
-       "http://localhost:3000",  # Local development
-       frontend_url,  # Your Vercel deployment
-    ]
+# else:
+#     allowed_origins = [
+#        "http://localhost:3000",  # Local development
+#        frontend_url,  # Your Vercel deployment
+#     ]
+
+allowed_origins = [
+"http://localhost:3000",
+"http://127.0.0.1:3000",
+"http://localhost:8080",
+"http://127.0.0.1:8080",
+"https://brain-image-generator.vercel.app",
+"https://ai-bot.statisticalcomputing.org",
+]
 
 app.add_middleware(
     CORSMiddleware,
