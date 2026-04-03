@@ -27,6 +27,7 @@ if frontend_url == "*":
     "http://127.0.0.1:8080",
     "https://brain-image-generator.vercel.app",
     "https://ai-bot.statisticalcomputing.org",
+        ]
 # allowed_origins = ["*"]
 else:
     allowed_origins = [
