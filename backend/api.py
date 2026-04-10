@@ -42,6 +42,7 @@ allowed_origins = [
 "http://127.0.0.1:8080",
 "https://brain-image-generator.vercel.app",
 "https://ai-bot.statisticalcomputing.org",
+"https://braingen.statisticalcomputing.org/",
 ]
 
 app.add_middleware(
