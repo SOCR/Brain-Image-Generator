@@ -46,7 +46,6 @@ backend/**/__pycache__/
 backend/*.pyc
 backend/.env
 backend/data/
-backend/inference/model/*.pth
 backend/inference/model/*.safetensors
 backend/inference/model/ddim-brain-128/
 
