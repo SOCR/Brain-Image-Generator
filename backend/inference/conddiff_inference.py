@@ -624,10 +624,22 @@ def _load_stack(path):
     array before casting -- e.g. `stack[2] = synthetic_mask` -- numpy silently DOWNCASTS the
     float32 mask into float16, and later `torch.from_numpy` hands the fp32 U-Net a half tensor.
     Both are silent. Cast first, assert, then touch anything.
+
+    8 OR 9 CHANNELS ON DISK, ALWAYS 9 OUT. scripts/export_for_website.py writes stack[1:9] by
+    DEFAULT -- 8 channels [T1, mask, atlas x6] -- because channel 0 is the real patient FLAIR and
+    it is deliberately not shipped (manifest.json "channels": count 8). Only --keep-flair writes
+    all 9. Everything downstream indexes the 9-channel layout (stack[1] = T1, stack[2] = mask,
+    stack[3+k] = atlas k), so an 8-channel slice gets a ZERO channel 0 put back in front. That
+    channel is never read on the inference path: build_cond takes stack[1:9], and the U-Net's
+    input channel 0 is the noisy FLAIR it generates. So the zeros change no computation.
+    (Before this, every exporter-default slice was rejected here as "unreadable", and live mode
+    could not serve a single image from the real bundle.)
     """
-    stack = np.load(path).astype(np.float32)               # (9,256,256) float32
+    stack = np.load(path).astype(np.float32)               # (8 or 9,256,256) float32
+    if stack.shape == (8, 256, 256):                       # exporter default: FLAIR not shipped
+        stack = np.concatenate([np.zeros((1, 256, 256), np.float32), stack])  # (9,256,256)
     if stack.shape != (9, 256, 256):
-        raise ValueError(f"bank slice {path} has shape {stack.shape}, expected (9, 256, 256)")
+        raise ValueError(f"bank slice {path} has shape {stack.shape}, expected (8 or 9, 256, 256)")
     assert stack.dtype == np.float32
     return stack
 

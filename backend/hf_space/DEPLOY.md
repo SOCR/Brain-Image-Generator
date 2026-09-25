@@ -80,6 +80,7 @@ Checked against huggingface.co/docs and the installed `spaces` 0.51.3 source on 
 | 5.2 | Quota draining via the playground | **Accepted for now** | Signed-in-only token; rate limiting; sign-in required | See §6. The escape hatch is one line. |
 | 5.3 | Images per request | **Capped at 1–5 in `app.py`** | No cap; also capping in the route | Matches the UI. One huge request can't freeze the queue or flood storage. |
 | 6.1 | Deploying code | **`push_space.py`: one command, one atomic commit of 13 files** | Manual `hf upload`s; git; GitHub auto-deploy | One rebuild per deploy, and weights can never be uploaded by accident. |
+| 7.1 | 8- vs 9-channel slices *(found on the first real GPU run)* | **Fix `_load_stack` in `conddiff_inference.py`:** accept 8-channel slices and prepend a zero channel 0 | Another name swap in `app.py`; re-export with `--keep-flair`; padding the files | The exporter ships 8 channels by default (the patient's real FLAIR is deliberately dropped), but the loader only accepted 9, so live mode rejected every real slice. Channel 0 is never read at inference (`build_cond` takes `stack[1:9]`), so the zeros change no computation. This is the one edit to the model file, overriding 2.4's "untouched". `conddiff_core.py` is still unchanged (sha256 `87785659…`). |
 
 ---
 
@@ -130,7 +131,7 @@ python backend/hf_space/push_space.py ALIUD1/braingen-backend --assets ALIUD1/br
 This creates the Space (Gradio, ZeroGPU, public), sets `ASSETS_REPO`, uploads 13 files in one commit, and prints the `conddiff_core.py` hash. The build takes ~5–15 min. **The first boot is expected to fail** with "ASSETS_REPO … download failed", because the Space has no `HF_TOKEN` yet. Step 3 adds it and restarts.
 
 ### 3. Add the Space's secrets
-First create a **fine-grained** token `braingen-space-read` with **read** access to `ALIUD1/braingen-assets` only. Then Space → Settings → *Variables and secrets* → **New secret**: `HF_TOKEN` = `braingen-space-read`; `SUPABASE_URL` and `SUPABASE_KEY` = the lab's values (from `backend/.env`). Optional variables: `CONDDIFF_STEPS` (200), `CONDDIFF_GPU_DURATION` (30, whole seconds), `CONDDIFF_MIN_BRAIN`. Then **Restart**.
+First create a **fine-grained** token `braingen-space-read` with **read** access to `ALIUD1/braingen-assets` only. Then Space → Settings → *Variables and secrets* → **New secret**: `HF_TOKEN` = `braingen-space-read`; `SUPABASE_URL` = `https://jfabbyhrypmamraqluyv.supabase.co` (the lab's production project) and `SUPABASE_KEY` = the **anon** key, i.e. the value of `NEXT_PUBLIC_SUPABASE_ANON_KEY` in the repo-root `.env.local`. **Not** `backend/.env`: that file points at a local test Supabase (`http://localhost:54321`). The anon key is enough because the lab's schema lets it upload to the `images`/`volumes` buckets ("Public Access" policy) and insert into `generated_images` (no row-level security). It's also already public, since browsers receive it. Only if a publish fails with a row-level-security or 401/403 error, use the `service_role` key (Supabase → Project Settings → API) instead. Optional variables: `CONDDIFF_STEPS` (200), `CONDDIFF_GPU_DURATION` (30, whole seconds), `CONDDIFF_MIN_BRAIN`. Then **Restart**.
 
 ### 4. Verify on HF (the MVP's success checks)
 - [ ] The logs show `STATUS : ready`, `device : cuda`, `loaded diffusion_ema.pt: 85,261,185 parameters`. A bad token fails the boot with "ASSETS_REPO … download failed".
@@ -189,7 +190,8 @@ The environment was the exact dependency set the HF builder installs: `requireme
   - an unreachable Space
   - a malformed `CONDDIFF_GPU_DURATION`
 
-  The fake checkpoint loads `strict=True` at 85,261,185 parameters.
+  The fake checkpoint loads `strict=True` at 85,261,185 parameters. The fake slices are **8-channel** (1,048,704 bytes each), exactly like the real exporter output. An earlier 9-channel fake bundle is why the 7.1 bug stayed hidden until the first real run.
+- **The real bundle and checkpoint (on HF):** 42 slices from 22 patients, 11 lobe × level pairs. The real `diffusion_ema.pt` loads `strict=True` at 85,261,185 parameters.
 - **A failed asset download** (401) now stops the boot with a clear error. It no longer boots silently without weights.
 - **`smoke_test_models.py`, torch 2.0.1 vs 2.11.0:** every GAN checkpoint matches every key (30/30, 30/30, 30/30, 87/87, 30/30, 41/41), and the outputs are equal to within ≤ 1e-7.
 - **`supabase_storage.py` (unmodified), supabase 2.0.3 vs 2.31.0,** against a fake Supabase server: the same upload paths, the same multipart PNG body, the same database row and ID.
