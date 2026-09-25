@@ -1,0 +1,59 @@
+import { NextResponse } from "next/server";
+
+/**
+ * GET /api/conddiff-cells
+ *
+ * Proxies the Python backend's /conddiff-cells, which reports the (Lobe, Slice Location)
+ * combinations braingen_CondDiffuser_BraTS_v1 can actually generate.
+ *
+ * WHY THIS ROUTE EXISTS AT ALL, given NEXT_PUBLIC_BACKEND_URL is readable by the browser:
+ * every other backend call in this app is proxied through app/api/ (see generate/route.ts), so
+ * a direct browser fetch would be the only client-side cross-origin call in the codebase - it
+ * would depend on api.py's CORS allowed_origins list staying in sync with whatever Vercel
+ * preview URL is deployed, and it would fail silently on a preview domain nobody added there.
+ * Proxying keeps the request same-origin and makes the backend URL a server-side concern.
+ *
+ * WHY THE FRONTEND NEEDS IT: the conditioning bank fills only 11 of the 18 lobe x level cells
+ * (the cerebellum has no superior slices; the insula may never clear the lobe-area gate). If
+ * the UI offered all 18, a user could pick a cell that does not exist, and the backend's
+ * blanket exception handler would turn that into HTTP 200 with no images - a "Success" toast
+ * over an empty viewer. The panel greys the missing cells out instead.
+ *
+ * NO AUTH CHECK, deliberately, unlike generate/route.ts. This returns nothing but the model's
+ * own capability matrix - no user data, no generation, no cost. The playground renders the
+ * parameter panel before a session exists, so requiring auth here would leave every lobe
+ * disabled for exactly the users most likely to be trying the model out.
+ */
+export async function GET() {
+  try {
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+    const response = await fetch(`${backendUrl}/conddiff-cells`, {
+      // The bank changes only when someone re-exports and redeploys it, but caching a
+      // "ready: false" from a backend that was still booting would leave the controls disabled
+      // for the lifetime of the cache. Always ask.
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      // A backend that is down or too old to know this route is NOT an error the user should
+      // see. Report unready with empty lists and let the panel decide how to present that -
+      // the same shape the backend itself returns when it is not READY, so the client has one
+      // code path instead of two.
+      return NextResponse.json(
+        { mode: "unknown", ready: false, reason: `backend returned ${response.status}`,
+          pairs: [], lobes: [], levels: [], sizes: [] },
+        { status: 200 }
+      );
+    }
+
+    return NextResponse.json(await response.json());
+  } catch (error) {
+    console.error("Error fetching conddiff cells:", error);
+    return NextResponse.json(
+      { mode: "unknown", ready: false, reason: "backend unreachable",
+        pairs: [], lobes: [], levels: [], sizes: [] },
+      { status: 200 }
+    );
+  }
+}

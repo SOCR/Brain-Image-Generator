@@ -1,0 +1,107 @@
+# =============================================================================================
+# requirements-common.txt -- EVERY PIN THAT IS IDENTICAL ON CPU AND GPU
+# =============================================================================================
+# WHY THIS FILE EXISTS. The backend is now built for two targets that differ in EXACTLY ONE
+# LINE -- which build of torch they install:
+#
+#     requirements.txt       (CPU)  -r requirements-common.txt  +  torch==2.0.1+cpu
+#     requirements-gpu.txt   (GPU)  -r requirements-common.txt  +  torch==2.0.1+cu118
+#
+# The obvious alternative -- copy the whole pin list into a second file and change one line --
+# was REJECTED, and the reason is not tidiness. The five GAN models in production are pinned to
+# numpy==1.24.3 and Pillow==10.0.0 for compatibility with torch 2.0.1; every one of them loads
+# its weights with `strict=False` (cgan_inference.py:174 and its siblings), so a dependency
+# that drifted on only one of the two targets would NOT raise -- it would quietly return
+# randomly-initialised generators that still emit brain-shaped output. A duplicated list drifts
+# the first time somebody edits one file and forgets the other, and the drift is invisible.
+# One file, included by both, makes that class of bug unrepresentable.
+#
+# HOW THE INCLUDE WORKS, because it is easy to get wrong: `-r requirements-common.txt` inside a
+# requirements file is resolved RELATIVE TO THE DIRECTORY OF THE FILE THAT CONTAINS IT, not to
+# the process working directory. Both variant files sit next to this one in backend/, so
+# `pip install -r requirements.txt` works from anywhere -- but the Dockerfiles must COPY BOTH
+# FILES before running pip, or pip dies on a missing include. See Dockerfile:15.
+#
+# THIS FILE IS NOT INSTALLABLE ON ITS OWN. It deliberately contains no torch. Installing it
+# alone would let pip resolve torch as a transitive of nothing at all (nothing here requires
+# torch -- see the diffusers note below), leaving an environment with no torch and no error.
+# Always install one of the two variant files.
+# =============================================================================================
+
+# Web framework
+fastapi==0.104.1
+uvicorn==0.23.2
+pydantic==2.4.2
+
+# Core dependencies
+numpy==1.24.3
+matplotlib==3.7.2
+nibabel==5.1.0
+python-dotenv==1.0.0
+Pillow==10.0.0
+PyWavelets==1.8.0
+pandas==2.3.3
+
+# Supabase
+supabase==2.0.3
+
+# --- braingen_CondDiffuser_BraTS_v1 (the paper's conditional diffusion model) -----------------
+# Needed only by CONDDIFF_MODE=live, which builds the U-Net and runs the DDIM loop at request
+# time. CONDDIFF_MODE=gallery serves pre-rendered PNGs and imports neither of these.
+#
+# THE VERSION IS NOT FREE. models/diffusion_ema.pt was written on Great Lakes by diffusers
+# 0.38.0 (measured 2026-09-08). diffusers renamed the attention block AttentionBlock ->
+# Attention across versions, moving the parameter names query/key/value/proj_attn to
+# to_q/to_k/to_v/to_out.0. conddiff_inference.py loads with strict=True precisely so a skew
+# raises instead of silently loading a randomly-initialised network -- so this pin must track
+# whatever version saved the checkpoint.
+#
+# IT IS IN THE SHARED FILE, NOT THE GPU FILE, ON PURPOSE. It would be tempting to install
+# diffusers only on the GPU target, since only live mode imports it. But CONDDIFF_MODE is an
+# ENVIRONMENT VARIABLE, not a build flag: someone can set CONDDIFF_MODE=live on a CPU
+# container, and the honest failure there is a slow image, not `ModuleNotFoundError: diffusers`
+# from inside a request handler. Keeping the two images dependency-identical also means the
+# smoke test below answers the diffusers/torch question ONCE for both.
+diffusers==0.38.0
+
+# For the optional fp16 safetensors export of the checkpoint (smaller than the 325 MB .pt, and
+# without the arbitrary-code-execution surface torch.load's pickle has). Harmless if unused.
+#
+# THE VERSION IS FORCED BY diffusers, NOT CHOSEN. diffusers 0.38.0's metadata declares
+# `Requires-Dist: safetensors>=0.8.0-rc.0`, so pinning anything below 0.8.0 here is not merely
+# old -- it makes the requirement set UNSATISFIABLE. pip then exits with ResolutionImpossible,
+# `RUN pip install --no-cache-dir -r requirements.txt` fails, `docker build` fails, and
+# deploy-to-lightsail.sh (set -e) aborts at Step 1. That would block every redeploy of the CPU
+# container, including ones that have nothing to do with this model. Verified 2026-09-09:
+# `pip install --dry-run --python-version 3.10 diffusers==0.38.0 safetensors==0.4.5` ->
+# ResolutionImpossible; with 0.8.0 it resolves, and it still co-resolves with supabase==2.0.3
+# (which holds httpx to <0.25 through gotrue/postgrest/storage3).
+# If the diffusers pin above ever moves, re-check this floor with the same dry run.
+safetensors==0.8.0
+
+# KNOWN TENSION, NOT YET RESOLVED -- READ BEFORE DEPLOYING LIVE MODE.
+# torch is pinned at 2.0.1 in BOTH variant files (+cpu / +cu118); the checkpoint was saved
+# under torch 2.11.0+cu128. A bare state_dict of plain tensors should load across that gap, but
+# diffusers 0.38.0 is a modern release and may require a newer torch than 2.0.1 at import time.
+# Note that pip itself will NOT catch that: diffusers declares torch only under its optional
+# `torch` extra, so the resolver is happy with any torch at all -- or with NO torch -- and an
+# incompatibility can only surface as an ImportError at the first live request.
+#
+# TREAT IT AS A QUESTION THE SMOKE TEST ANSWERS, NEVER AS SOMETHING TO ASSERT. The test is one
+# line inside the built image, and it costs seconds:
+#
+#     docker run --rm --entrypoint python <image> \
+#       -c "import torch, diffusers; from diffusers import UNet2DModel; \
+#           print(torch.__version__, diffusers.__version__)"
+#
+# If that raises, raise torch -- IN BOTH VARIANT FILES TOGETHER, AND KEEP THE SUFFIXES PAIRED
+# (a +cpu and a +cu118 of the same version), because the whole point of pinning 2.0.1 on the
+# GPU target is that it is the SAME version already in production and the GAN numerics stay
+# bit-identical.
+#
+# DO NOT raise torch casually: the five GAN models load their weights with strict=False
+# (cgan_inference.py:174 and its siblings), so a torch upgrade that broke their checkpoints
+# would NOT raise -- it would quietly return randomly-initialised generators that still emit
+# brain-shaped output. Re-test all five against known-good images after any torch change.
+# Torch >= 2.6 additionally flips torch.load's default to weights_only=True, which breaks every
+# existing `load_state_dict(torch.load(...), strict=False)` call in backend/inference/.

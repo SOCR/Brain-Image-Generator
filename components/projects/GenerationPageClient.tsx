@@ -34,10 +34,63 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   const [sliceLocation, setSliceLocation] = useState<string>('Middle')
   const [resolution, setResolution] = useState<string>('64')
 
+  // Conditional-diffusion parameters (braingen_CondDiffuser_BraTS_v1).
+  // All parameter state lives here in the parent; ParameterControlPanel is fully
+  // controlled and holds none of its own. Defaults MUST be non-empty valid strings:
+  // nothing validates params before the POST (the Generate button only checks that a
+  // model is selected), so an empty string would go straight to the backend.
+  const [lobe, setLobe] = useState<string>('Frontal')
+  const [tumourSize, setTumourSize] = useState<string>('Moderate')
+
+  // Which (Lobe, Slice Location) pairs the DEPLOYED backend can actually generate.
+  //
+  // This is not cosmetic. The conditioning bank fills only 11 of the 18 combinations, and the
+  // gaps are anatomy rather than a bug: the cerebellum does not appear in superior slices, and
+  // the insula is small enough that it can fail the lobe-area gate at some levels. If the panel
+  // offered all 18, picking a missing one would raise in the backend, image_generation.py's
+  // blanket `except` would swallow it into an empty list, and FastAPI would return HTTP 200 --
+  // a green "Success" toast over a blank viewer. So we ask the backend what exists and grey out
+  // the rest.
+  //
+  // `null` means "not asked yet". That is deliberately distinct from "asked, and the answer was
+  // nothing": while it is null the panel leaves every option ENABLED, so a slow or unreachable
+  // backend degrades to today's behaviour instead of a control panel where nothing is
+  // clickable. The route never rejects -- it returns ready:false with empty lists -- so this
+  // settles to a real answer either way.
+  const [conddiffCells, setConddiffCells] = useState<
+    { ready: boolean; pairs: { lobe: string; slice_location: string }[] } | null
+  >(null)
+
+  // Fetched once on mount rather than on every model switch: the answer changes only when
+  // someone re-exports the bank and redeploys, and the panel needs it the instant the user
+  // picks the model.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/conddiff-cells')
+      .then(r => r.json())
+      .then(d => { if (!cancelled) setConddiffCells({ ready: !!d.ready, pairs: d.pairs || [] }) })
+      .catch(() => { if (!cancelled) setConddiffCells({ ready: false, pairs: [] }) })
+    // React 18 StrictMode double-invokes effects in development; the flag stops the second
+    // response from overwriting state after this component has already unmounted.
+    return () => { cancelled = true }
+  }, [])
+
   // Reset selected model when dimension type changes
   useEffect(() => {
     setSelectedModel('')
   }, [dimensionType])
+
+  // The conditional diffusion model runs a real DDIM sampling loop on the CPU (~950 GFLOP per
+  // step, 50 steps by default) and backend/image_generation.py loops `for i in range(n_images)`
+  // SEQUENTIALLY inside one synchronous request. Asking for 5 multiplies an already
+  // minutes-long request by five. Clamp the state itself (not just the input's max) so that a
+  // count left over from another model cannot survive the switch, and so the success toast
+  // continues to report the truth.
+  useEffect(() => {
+    if (selectedModel === 'braingen_CondDiffuser_BraTS_v1 (2D)') {
+      setNumImages(1)
+    }
+  }, [selectedModel])
 
   // Parse image info from generated images
   useEffect(() => {
@@ -190,6 +243,27 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
       return { tumour }
     }
 
+    if (selectedModel === 'braingen_CondDiffuser_BraTS_v1 (2D)') {
+      // Keys are snake_case (the file's existing convention: sliceLocation ->
+      // slice_location) and must match the backend's params lookups exactly.
+      //
+      // `sliceLocation` is shared with the cGAN models, whose Sagittal/Coronal
+      // orientations can leave it at 'Left' / 'Anterior' etc. This model only
+      // understands the axial triple, so coerce rather than send a value the backend
+      // has never heard of. ParameterControlPanel applies the identical coercion to the
+      // value it DISPLAYS, so the control and the request always agree.
+      const level = ['Inferior', 'Middle', 'Superior'].includes(sliceLocation)
+        ? sliceLocation
+        : 'Middle'
+
+      return {
+        tumour,
+        lobe,
+        slice_location: level,
+        tumour_size: tumourSize
+      }
+    }
+
     if (selectedModel.includes('braingen_cGAN_Multicontrast') ||
         selectedModel === 'braingen_WaveletGAN_Multicontrast_BraTS_v1 (2D)') {
       return {
@@ -242,16 +316,36 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
       }
 
       const data = await response.json()
+
+      // The backend answers HTTP 200 with an EMPTY inner list whenever an inference call
+      // raised: backend/image_generation.py catches every exception, prints it to the
+      // container log, and substitutes `image_path = []`. For the conditional diffusion
+      // model that is the normal failure shape -- a missing checkpoint, a missing
+      // conditioning bank, or a (lobe, slice location) combination the shipped bank cannot
+      // serve all land here. Without this check the user gets a green "Success" toast over
+      // an empty viewer with no indication that anything went wrong.
+      const returned: unknown[] = Array.isArray(data.image_ids) ? data.image_ids : []
+      // `entry.some(Boolean)` rather than `entry.length > 0`: supabase_storage.add_to_database
+      // swallows its own errors and returns None, so a failed upload can come back as [null],
+      // which is just as blank to the viewer as [].
+      const produced = returned.filter(entry =>
+        Array.isArray(entry) ? entry.some(Boolean) : Boolean(entry)
+      )
+      if (produced.length === 0) {
+        throw new Error('The backend returned no images. Check the backend logs for the cause.')
+      }
+
       setGeneratedImageIds(data.image_ids)
+      // Report what actually came back, not what was asked for.
       toast({
         title: "Success",
-        description: `Generated ${numImages} image set${numImages > 1 ? 's' : ''}`,
+        description: `Generated ${produced.length} image set${produced.length > 1 ? 's' : ''}`,
       })
     } catch (error) {
       console.error('Error:', error)
       toast({
         title: "Error",
-        description: "Failed to generate image",
+        description: error instanceof Error ? error.message : "Failed to generate image",
         variant: "destructive"
       })
     } finally {
@@ -276,6 +370,15 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         setSliceLocation={setSliceLocation}
         resolution={resolution}
         setResolution={setResolution}
+        // Conditional-diffusion parameters -- required props, so these must be threaded
+        // here in the same change as the interface addition in ParameterControlPanel.
+        lobe={lobe}
+        setLobe={setLobe}
+        tumourSize={tumourSize}
+        setTumourSize={setTumourSize}
+        // Optional: `null` until the capability fetch settles, which the panel reads as
+        // "leave everything enabled" so a slow backend does not lock the controls.
+        conddiffCells={conddiffCells}
         isGenerating={isGenerating}
         onGenerate={generateImage}
       />
