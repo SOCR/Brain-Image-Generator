@@ -312,7 +312,9 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
       })
 
       if (!response.ok) {
-        throw new Error('Error generating image')
+        // /api/generate puts the backend's reason in `error` (e.g. the GPU quota message).
+        const body = await response.json().catch(() => null)
+        throw new Error(body?.error || 'Error generating image')
       }
 
       const data = await response.json()

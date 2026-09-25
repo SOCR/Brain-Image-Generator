@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { callSpace } from "@/lib/hfSpace";
 
 /**
  * GET /api/conddiff-cells
@@ -26,6 +27,12 @@ import { NextResponse } from "next/server";
  */
 export async function GET() {
   try {
+    // Hugging Face Space backend: same JSON. A throw (asleep, unreachable) falls into the catch
+    // below and reports ready:false, exactly like an unreachable FastAPI backend.
+    if (process.env.HF_SPACE_URL) {
+      return NextResponse.json(await callSpace(process.env.HF_SPACE_URL, "conddiff_cells", [], process.env.HF_TOKEN));
+    }
+
     const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
     const response = await fetch(`${backendUrl}/conddiff-cells`, {

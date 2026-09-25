@@ -1,0 +1,43 @@
+# requirements.txt -- the Hugging Face ZeroGPU Space (backend/hf_space/app.py).
+#
+# Not installed by either Dockerfile; the Lightsail image keeps using ../requirements.txt.
+# gradio and spaces are NOT listed: the Space README's sdk_version pins gradio, and ZeroGPU
+# installs `spaces` itself.
+#
+# Checked on 2026-09-23 with `uv pip compile` (Linux, Python 3.10) against this file PLUS the
+# exact line the HF builder adds for the README's sdk_version: gradio[oauth,mcp]==6.28.0,
+# uvicorn>=0.14.0, spaces. It resolves cleanly.
+
+# --- torch: the one pin that HAD to move ------------------------------------------------------
+# ZeroGPU supports torch 2.8.0-2.13.0 only (the old 2.0.1 was dropped with the Blackwell move in
+# May 2026). 2.11.0 is the exact version that WROTE diffusion_ema.pt on Great Lakes (torch
+# 2.11.0+cu128, measured 2026-09-08), so the diffusion model runs on the torch it was trained with.
+# The five GANs move from 2.0.1 to 2.11.0 with it. They load with strict=False, so run
+# smoke_test_models.py on the Space and check its "keys matched" column.
+torch==2.11.0
+
+# --- the diffusion model: must match the training environment --------------------------------
+# diffusers decides the U-Net's parameter NAMES (the AttentionBlock -> Attention rename), and
+# conddiff loads with strict=True, so a different version fails loudly at startup.
+diffusers==0.38.0
+safetensors==0.8.0
+
+# --- supabase: the second pin that HAD to move -------------------------------------------------
+# 2.0.3 pins httpx<0.25, and the builder's gradio[mcp] extra needs httpx>=0.27.1, so with 2.0.3
+# the Space build fails outright. 2.31.0 resolves. The unmodified supabase_storage.py was run
+# against a fake Supabase server on both versions: same storage paths, same multipart PNG body,
+# same DB row, same returned id / public URL.
+supabase==2.31.0
+
+# --- everything else: unchanged from ../requirements-common.txt ---------------------------------
+# Same pins as production, so the GANs' numpy / Pillow / pandas numerics do not change. These
+# pins are also why this Space uses Python 3.10 (ZeroGPU offers 3.10 and 3.12): numpy 1.24.3 and
+# matplotlib 3.7.2 have no Python 3.12 wheels.
+# fastapi / uvicorn / pydantic are left out: api.py does not run here, and gradio brings its own.
+numpy==1.24.3
+matplotlib==3.7.2
+nibabel==5.1.0
+PyWavelets==1.8.0
+pandas==2.3.3
+Pillow==10.0.0
+python-dotenv==1.0.0
