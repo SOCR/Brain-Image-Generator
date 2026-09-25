@@ -57,8 +57,13 @@ export async function GET() {
     return NextResponse.json(await response.json());
   } catch (error) {
     console.error("Error fetching conddiff cells:", error);
+    // Say WHICH backend was tried and why it failed. "backend unreachable" alone made a missing
+    // HF_SPACE_URL (fallback to the old FastAPI URL) look identical to a failing Space call.
+    // The message never contains the token: callSpace errors carry only an HTTP status or text.
+    const tried = process.env.HF_SPACE_URL ? "HF Space" : "FastAPI fallback (HF_SPACE_URL not set)";
+    const why = error instanceof Error ? error.message : String(error);
     return NextResponse.json(
-      { mode: "unknown", ready: false, reason: "backend unreachable",
+      { mode: "unknown", ready: false, reason: `backend unreachable: ${tried}: ${why}`,
         pairs: [], lobes: [], levels: [], sizes: [] },
       { status: 200 }
     );
