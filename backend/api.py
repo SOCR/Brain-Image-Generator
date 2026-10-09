@@ -111,7 +111,12 @@ async def list_models():
         "braingen_cGAN_Multicontrast_seg_BraTS_v1 (2D)",
         "braingen_WaveletGAN_Multicontrast_BraTS_v1 (2D)",
         "braingen_diffuser_BraTS_v1 (2D)",
-        "braingen_gan3d_BraTS_64_v1 (3D)"
+        "braingen_gan3d_BraTS_64_v1 (3D)",
+        # Atlas-guided conditional diffuser. NOTE: this endpoint is cosmetic - the frontend
+        # hardcodes its own model list in ParameterControlPanel.tsx and never calls GET /models
+        # (which is why this list already advertises braingen_diffuser_BraTS_v1, a model the UI
+        # does not offer). Kept in sync anyway so the API self-describes correctly.
+        "braingen_CondDiffuser_BraTS_v1 (2D)"
     ]
     return {"models": models}
 
@@ -123,7 +128,28 @@ async def check_model_files():
         "WAVELET_GAN_COARSE": os.path.join(os.getcwd(), "inference/model/generator_coarse_epoch_16_2500.pth"),
         "WAVELET_GAN_FINE": os.path.join(os.getcwd(), "inference/model/generator_fine_epoch_16_2500.pth"),
         "GAN_3D_32": os.path.join(os.getcwd(), "inference/model/generator_epoch_6100.pth"),
-        "GAN_3D_64": os.path.join(os.getcwd(), "inference/model/generator_epoch_3d64.pth")
+        "GAN_3D_64": os.path.join(os.getcwd(), "inference/model/generator_epoch_3d64.pth"),
+        # --- braingen_CondDiffuser_BraTS_v1 assets -------------------------------------------
+        # Unlike the GANs, this model needs more than a weights file: it also needs conditioning
+        # (a patient T1, a tumour mask and 6 atlas lobe maps) that the website has no way to
+        # synthesize, so a preprocessed bank of val-split slices ships alongside the checkpoint.
+        # Both are delivered out of band, exactly like the .pth files - neither is in git.
+        # Listing the paths here is the only way to confirm from outside the container that the
+        # out-of-band copy actually landed before docker build.
+        #
+        # THESE PATHS MUST STAY IN LOCKSTEP WITH inference/conddiff_inference.py's own constants
+        # (CKPT_CANDIDATES and MANIFEST_PATH) - that module is what actually reads them, and this
+        # endpoint is only useful if it checks the same places. The checkpoint lives in
+        # inference/model/ with the GAN weights; the conditioning bundle produced by
+        # scripts/export_for_website.py lands whole in inference/conddiff_bundle/.
+        # The checkpoint may arrive as either the original .pt pickle or an fp16 safetensors
+        # export, so both are listed and only ONE of the two needs to exist -- and the bundle
+        # carries its own copy of the .pt, which is the third candidate the module accepts.
+        "CONDDIFF_CHECKPOINT_PT": os.path.join(os.getcwd(), "inference/model/diffusion_ema.pt"),
+        "CONDDIFF_CHECKPOINT_SAFETENSORS": os.path.join(os.getcwd(), "inference/model/diffusion_ema_fp16.safetensors"),
+        "CONDDIFF_CHECKPOINT_IN_BUNDLE": os.path.join(os.getcwd(), "inference/conddiff_bundle/diffusion_ema.pt"),
+        "CONDDIFF_BUNDLE_MANIFEST": os.path.join(os.getcwd(), "inference/conddiff_bundle/manifest.json"),
+        "CONDDIFF_GALLERY_MANIFEST": os.path.join(os.getcwd(), "inference/conddiff_gallery/manifest.json")
     }
     
     results = {}
@@ -134,6 +160,50 @@ async def check_model_files():
         }
     
     return {"model_files": results}
+
+@app.get("/conddiff-selftest")
+async def conddiff_selftest():
+    """Diagnose the conditional diffuser without a shell on the container.
+
+    /check-models above only answers "does the file exist". This answers the questions that
+    actually decide whether a request will succeed: did the startup asset check pass, how many
+    conditioning slices did the manifest parse to, which lobes and slice levels does the bank
+    actually cover, and how many DDIM steps is this deployment configured for.
+
+    This matters because image_generation.py catches every inference exception, prints it, and
+    substitutes an empty list - so a broken deployment returns HTTP 200 with a green "Success"
+    toast and a blank viewer. Without this endpoint the only evidence is container stdout.
+
+    Imported inside the handler so that a problem in the diffuser module can never break
+    api.py's own import; it runs no model and loads no weights.
+    """
+    import inference.conddiff_inference as cdiff
+    return cdiff.selftest()
+
+@app.get("/conddiff-cells")
+async def conddiff_cells():
+    """Which (Lobe, Slice Location) combinations this deployment can actually generate.
+
+    The frontend calls this on mount and GREYS OUT the rest. It is not a nicety: the real
+    conditioning bank fills only 11 of the 18 combinations, because the anatomy does not
+    cooperate - the cerebellum does not appear in superior slices, and the insula is small
+    enough that it may never clear the lobe-area gate at any level. Offering all 18 means a
+    user can pick one of the 7 that do not exist, and image_generation.py's blanket except
+    turns that into HTTP 200 with an empty image list: a green "Success" toast over a blank
+    viewer, with the only evidence in container stdout.
+
+    Deliberately NOT solved by substituting a nearby slice level on the backend. That would
+    label an image with a location it was not generated at, and the whole point of this model
+    on this site is that the location is a controlled, recorded claim.
+
+    Values are the exact dropdown strings the UI uses ("Frontal", "Middle"), so the frontend
+    compares them directly with no case-mapping layer to get wrong.
+
+    Imported inside the handler for the same reason as /conddiff-selftest: a problem in the
+    diffuser module must never break api.py's own import. It runs no model and loads no weights.
+    """
+    import inference.conddiff_inference as cdiff
+    return cdiff.supported_combinations()
 
 if __name__ == "__main__":
     uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True) 

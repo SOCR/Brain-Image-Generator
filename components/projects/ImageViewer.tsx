@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
 import { Grid3X3, Square } from 'lucide-react'
 import ColorMappedImage from './ColorMappedImage'
+import { ImageDownloadButton } from './DownloadButtons'
 
 // Define image types
 export type ImageType = 't1' | 't2' | 'flair' | 'seg' | 't1ce'
@@ -31,10 +32,13 @@ export default function ImageViewer({
   showTabs = true,
   defaultType = 'flair'
 }: ImageViewerProps) {
-  // Get available image types
-  const availableTypes = (Object.keys(images) as ImageType[]).filter(
-    type => images[type]
-  )
+  // Image types shown as windows. The tumor mask is overlaid on every image instead of having
+  // its own window -- unless it is somehow the only image in the set.
+  const allTypes = (Object.keys(images) as ImageType[]).filter(type => images[type])
+  const nonMaskTypes = allTypes.filter(type => type !== 'seg')
+  const availableTypes = nonMaskTypes.length > 0 ? nonMaskTypes : allTypes
+  const maskUrl = nonMaskTypes.length > 0 ? images.seg : null
+  const [maskOpacity, setMaskOpacity] = useState(0.5)
 
   const [selectedImageType, setSelectedImageType] = useState<ImageType>(defaultType)
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
@@ -68,9 +72,10 @@ export default function ImageViewer({
     }
   }, [rotation, flipH, flipV, viewMode])
 
-  // Set first available type when images change
+  // Keep the selection on a type that is actually shown (the default 'flair' may be missing,
+  // and 'seg' is no longer a window of its own).
   useEffect(() => {
-    if (availableTypes.length > 0 && !images[selectedImageType]) {
+    if (availableTypes.length > 0 && !availableTypes.includes(selectedImageType)) {
       setSelectedImageType(availableTypes[0])
     }
   }, [images, availableTypes, selectedImageType])
@@ -123,6 +128,9 @@ export default function ImageViewer({
           onFlipHChange={handleSetFlipH}
           onFlipVChange={handleSetFlipV}
           controlsOnly={true}
+          hasOverlay={!!maskUrl}
+          overlayOpacity={maskOpacity}
+          onOverlayOpacityChange={setMaskOpacity}
         />
         
         {/* Grid layout with left padding for controls */}
@@ -138,6 +146,11 @@ export default function ImageViewer({
                 <div className="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-md shadow text-sm font-medium">
                   {IMAGE_TYPE_NAMES[type]}
                 </div>
+                {images[type] && (
+                  <div className="absolute bottom-2 right-2 z-10">
+                    <ImageDownloadButton url={images[type]!} label={IMAGE_TYPE_NAMES[type]} />
+                  </div>
+                )}
                 {images[type] ? (
                   <ColorMappedImage
                     src={images[type] || ''}
@@ -151,6 +164,8 @@ export default function ImageViewer({
                     rotation={rotation}
                     flipH={flipH}
                     flipV={flipV}
+                    overlaySrc={maskUrl}
+                    overlayOpacity={maskOpacity}
                   />
                 ) : (
                   <div className="flex items-center justify-center h-full">
@@ -201,6 +216,9 @@ export default function ImageViewer({
                 onRotationChange={handleSetRotation}
                 onFlipHChange={handleSetFlipH}
                 onFlipVChange={handleSetFlipV}
+                overlaySrc={maskUrl}
+                overlayOpacity={maskOpacity}
+                onOverlayOpacityChange={setMaskOpacity}
               />
             ) : (
               <div className="flex items-center justify-center h-full">
@@ -227,6 +245,9 @@ export default function ImageViewer({
                 </Button>
               )}
               
+              {/* Download the image currently shown */}
+              {images[type] && <ImageDownloadButton url={images[type]!} label={IMAGE_TYPE_NAMES[type]} />}
+
               {/* Tab switcher */}
               <TabsList className="p-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
                 {availableTypes.map(type => (

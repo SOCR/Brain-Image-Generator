@@ -7,6 +7,7 @@ import { toast } from '@/hooks/use-toast'
 import ImageSetCard, { ImageSet } from './ImageSetCard'
 import ImageSetDetailModal from './ImageSetDetailModal'
 import { Loader2, Filter } from 'lucide-react'
+import { downloadSetZip, parseParams } from '@/lib/download'
 
 interface LibraryPageClientProps {
   projectId: string
@@ -23,6 +24,7 @@ interface GeneratedImage {
   created_at: string
   model_name?: string
   dimension_type?: '2D' | '3D'
+  parameters_used?: unknown
 }
 
 export default function LibraryPageClient({ projectId, userId }: LibraryPageClientProps) {
@@ -63,15 +65,19 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
               image.dimension_type ||
               (image.file_path?.includes('.nii.gz') ? '3D' : '2D') ||
               (image.model_name?.includes('3D') ? '3D' : '2D')
+            // generated_images has no model column; the backend now records it inside
+            // parameters_used (older rows have neither, and stay 'Unknown Model').
+            const params = parseParams(image.parameters_used) as { model_name?: string } | undefined
 
             sets[setName] = {
               id: setName,
               name: setName,
               createdAt: image.created_at,
               dimensionType,
-              model: image.model_name || 'Unknown Model',
+              model: image.model_name || params?.model_name || 'Unknown Model',
               imageCount: 0,
               thumbnailUrl: null,
+              params,
               images: {
                 't1': null,
                 't2': null,
@@ -86,16 +92,18 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
           if (IMAGE_TYPES.includes(imageType)) {
             sets[setName].images[imageType] = image.file_path
             sets[setName].imageCount++
-
-            // Use first available image as thumbnail
-            if (!sets[setName].thumbnailUrl) {
-              sets[setName].thumbnailUrl = image.file_path
-            }
           } else if (image.file_path?.includes('.nii.gz')) {
             // 3D volume - store in the first available slot or t1
             sets[setName].images['t1'] = image.file_path
             sets[setName].imageCount++
           }
+        }
+
+        // Thumbnail: an anatomical image, not whichever row came first (often the bare mask,
+        // which is a black square). 3D sets keep no thumbnail, as before.
+        for (const s of Object.values(sets)) {
+          const { flair, t1, t2, t1ce, seg } = s.images
+          s.thumbnailUrl = s.dimensionType === '2D' ? (flair ?? t1 ?? t2 ?? t1ce ?? seg ?? null) : null
         }
 
         // Convert to array and sort
@@ -143,15 +151,22 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
   const handleDownload = async (imageSet: ImageSet) => {
     toast({
       title: "Download Started",
-      description: `Downloading ${imageSet.name}...`,
+      description: `Zipping ${imageSet.name}...`,
     })
-    // TODO: Implement actual download logic
-    // For now, just open images in new tabs
-    Object.values(imageSet.images).forEach(url => {
-      if (url) {
-        window.open(url, '_blank')
-      }
-    })
+    try {
+      // `model === 'Unknown Model'` is the card's display placeholder, not a real model name.
+      await downloadSetZip({
+        ...imageSet,
+        model: imageSet.model === 'Unknown Model' ? undefined : imageSet.model,
+      })
+    } catch (error) {
+      console.error('Error downloading image set:', error)
+      toast({
+        title: "Download failed",
+        description: error instanceof Error ? error.message : "Could not download this image set",
+        variant: "destructive"
+      })
+    }
   }
 
   const handleDelete = async (imageSet: ImageSet) => {

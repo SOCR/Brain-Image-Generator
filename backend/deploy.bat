@@ -108,6 +108,11 @@ echo Step 4: Creating deployment configuration...
 REM Set default FRONTEND_URL if not set
 if "%FRONTEND_URL%"=="" set FRONTEND_URL=*
 
+REM Pin braingen_CondDiffuser_BraTS_v1 to gallery mode on this target -- conddiff_inference.py
+REM defaults to "live" when CONDDIFF_MODE is unset, and live DDIM sampling on the micro
+REM container takes the whole backend (all five GAN models) down via the healthCheck.
+if "%CONDDIFF_MODE%"=="" set CONDDIFF_MODE=gallery
+
 REM Create deployment JSON
 (
 echo {
@@ -120,7 +125,8 @@ echo       },
 echo       "environment": {
 echo         "SUPABASE_URL": "%SUPABASE_URL%",
 echo         "SUPABASE_KEY": "%SUPABASE_KEY%",
-echo         "FRONTEND_URL": "%FRONTEND_URL%"
+echo         "FRONTEND_URL": "%FRONTEND_URL%",
+echo         "CONDDIFF_MODE": "%CONDDIFF_MODE%"
 echo       }
 echo     }
 echo   },

@@ -11,7 +11,8 @@
       "environment": {
         "SUPABASE_URL": "",
         "SUPABASE_KEY": "",
-        "FRONTEND_URL": ""
+        "FRONTEND_URL": "",
+        "CONDDIFF_MODE": "gallery"
       }
     }
   },

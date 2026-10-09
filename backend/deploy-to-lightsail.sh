@@ -65,6 +65,19 @@ IMAGE_REF="${ECR_REPO}:${IMAGE_TAG}"
 # Set default FRONTEND_URL if not set
 FRONTEND_URL=${FRONTEND_URL:-*}
 
+# PIN braingen_CondDiffuser_BraTS_v1 TO GALLERY MODE ON THIS TARGET.
+# conddiff_inference.py reads CONDDIFF_MODE and DEFAULTS TO "live" when it is unset, and live
+# mode builds an 85.3 M-parameter U-Net and runs a 50-step DDIM loop (~950 GFLOP per step)
+# inside the request. This script deploys to the Lightsail "micro" container (0.25 vCPU, 1 GB),
+# where that is not merely slow: api.py:81 is an `async def` wrapping synchronous work, so the
+# loop blocks uvicorn's event loop, /health stops answering, and the healthCheck below
+# (5 s timeout, 30 s interval, threshold 2) REPLACES THE CONTAINER after ~65 s -- taking the
+# five working GAN models down with it. Passing the variable explicitly here is the only thing
+# that prevents it: lightsail-config.json is NOT read by this script (the JSON below is
+# generated inline), so setting the variable there alone has no effect on what is deployed.
+# Overridable from .env for a one-off, but the default for this target is deliberately gallery.
+CONDDIFF_MODE=${CONDDIFF_MODE:-gallery}
+
 # Create deployment JSON
 cat > deployment.json <<EOF
 {
@@ -77,7 +90,8 @@ cat > deployment.json <<EOF
       "environment": {
         "SUPABASE_URL": "${SUPABASE_URL}",
         "SUPABASE_KEY": "${SUPABASE_KEY}",
-        "FRONTEND_URL": "${FRONTEND_URL}"
+        "FRONTEND_URL": "${FRONTEND_URL}",
+        "CONDDIFF_MODE": "${CONDDIFF_MODE}"
       }
     }
   },

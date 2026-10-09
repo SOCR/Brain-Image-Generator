@@ -1,20 +1,52 @@
-# Web framework
-fastapi==0.104.1
-uvicorn==0.23.2
-pydantic==2.4.2
+# =============================================================================================
+# requirements.txt -- THE CPU TARGET (AWS Lightsail container service)
+# =============================================================================================
+# This is the file the four existing deploy scripts install, because none of them passes `-f`
+# to `docker build` and the default `Dockerfile` hardcodes this filename. It is therefore the
+# file that builds the container serving the FIVE PRODUCTION GAN MODELS, and it must keep
+# resolving to exactly the environment it resolved to before the GPU work started.
+#
+# WHAT CHANGED HERE, AND WHAT DID NOT. Every pin that is identical on both targets moved,
+# UNEDITED, into requirements-common.txt -- including the diffusers/safetensors prose, which
+# was extended there rather than deleted. What is left in this file is the ONE LINE that is
+# genuinely CPU-specific: the torch wheel. Resolve `-r requirements-common.txt` mentally and
+# you get the same pin set as before, plus nothing.
+#
+#     requirements.txt       (CPU, this file)  common  +  torch==2.0.1+cpu
+#     requirements-gpu.txt   (GPU)             common  +  torch==2.0.1+cu118
+#
+# See requirements-common.txt's header for why the shared pins are in one file instead of being
+# copy-pasted into two that can silently drift.
+# =============================================================================================
 
-# Core dependencies
-numpy==1.24.3
-matplotlib==3.7.2
-nibabel==5.1.0
-python-dotenv==1.0.0
-Pillow==10.0.0
-PyWavelets==1.8.0
-pandas==2.3.3
+# THE INCLUDE. `-r` inside a requirements file is resolved RELATIVE TO THE DIRECTORY OF THIS
+# FILE, not to the process working directory, so `pip install -r backend/requirements.txt`
+# works from anywhere. The consequence for the build is that the Dockerfile must COPY BOTH
+# FILES before it runs pip, or pip dies on a missing include -- see Dockerfile's COPY line.
+-r requirements-common.txt
 
-# Supabase
-supabase==2.0.3
-
-# PyTorch CPU-only (much smaller, no CUDA/cuDNN)
+# --- torch: THE CPU-ONLY WHEEL ---------------------------------------------------------------
+# `+cpu` is a PEP 440 LOCAL VERSION SEGMENT, and it is doing real work here rather than being
+# decoration. PyPI hosts a plain `torch==2.0.1` (a CUDA build, ~2 GB of bundled nvidia libs);
+# the `+cpu` variant exists ONLY on download.pytorch.org. Because a local segment must match
+# exactly when it is specified, `torch==2.0.1+cpu` cannot be satisfied by PyPI's `2.0.1` -- so
+# this pin is unambiguous even though pip is searching two indexes at once. That is the whole
+# reason `--extra-index-url` (adds an index, keeps PyPI) is safe here where `--index-url`
+# (REPLACES PyPI) would be wrong: fastapi, supabase, nibabel and the rest are not on the
+# PyTorch index and the install would fail.
+#
+# WHY CPU-ONLY MATTERS ON THIS TARGET: the CUDA build is ~2 GB larger and the Lightsail "micro"
+# container (0.25 vCPU / 1 GB) has no GPU to use it with. Every byte would be dead weight in a
+# ~$10/month container that is already tight on memory.
+#
+# WHY THIS LINE IS NOT IN requirements-common.txt: it is the single point of difference between
+# the two targets. Anything that ever needs to differ between CPU and GPU belongs here or in
+# requirements-gpu.txt; anything else belongs in the shared file.
+#
+# DO NOT ADD A SECOND `--extra-index-url` TO THIS FILE, and never install this file and
+# requirements-gpu.txt in the same pip invocation. Index options in a requirements file are
+# GLOBAL to the whole pip run, not scoped to the lines beneath them, so a run that saw both the
+# /whl/cpu and /whl/cu118 indexes would be resolving torch against two candidate sets at once.
+# One target, one file, one index.
 --extra-index-url https://download.pytorch.org/whl/cpu
 torch==2.0.1+cpu

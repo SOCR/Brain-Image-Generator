@@ -1,0 +1,117 @@
+# =============================================================================================
+# requirements-gpu.txt -- THE GPU TARGET (EC2 g4dn.xlarge class, 1 x Tesla T4)
+# =============================================================================================
+# Installed by Dockerfile.gpu, and by nothing else. The four Lightsail deploy scripts do not
+# pass `-f` to `docker build`, so they build the default `Dockerfile`, which installs
+# requirements.txt. This file cannot affect the CPU deployment even by accident.
+#
+# It exists for exactly one reason: braingen_CondDiffuser_BraTS_v1 in CONDDIFF_MODE=live runs a
+# 50-200 step DDIM loop over an ~85.3 M-parameter U-Net at ~950 GFLOP per forward pass. That is
+# roughly four orders of magnitude more compute than the single ~3.9 GFLOP forward pass every
+# other model on this site does. Measured: ~1 s/sample on a T4 versus ~2 min on a full
+# multi-core laptop CPU. A CPU-only wheel on a GPU host does not error -- it just silently
+# takes the two minutes (see the failure-mode note in Dockerfile.gpu).
+#
+#     requirements.txt       (CPU)             common  +  torch==2.0.1+cpu
+#     requirements-gpu.txt   (GPU, this file)  common  +  torch==2.0.1+cu118
+# =============================================================================================
+
+# THE INCLUDE. Resolved relative to THIS FILE's directory, so both variants pick up the same
+# backend/requirements-common.txt. This is the mechanism that makes drift between the two
+# targets impossible for every pin except torch: there is only one copy of the list.
+#
+# NOTE FOR Dockerfile.gpu: pip needs BOTH files present on disk before it runs, so the COPY
+# step must name requirements-gpu.txt AND requirements-common.txt. Copying only this one gets
+# `Could not open requirements file: requirements-common.txt`.
+-r requirements-common.txt
+
+# --- torch: THE CUDA 11.8 WHEEL, SAME VERSION AS PRODUCTION ----------------------------------
+# 2.0.1 IS DELIBERATELY THE SAME VERSION THE CPU CONTAINER ALREADY RUNS -- only the build
+# differs (+cpu -> +cu118). That is the entire safety argument for this migration and it is
+# worth spelling out, because the tempting alternative (jump to a modern torch that certainly
+# imports diffusers 0.38.0) is the dangerous one:
+#
+#   The five GAN models load their weights with `strict=False`
+#   (cgan_inference.py:174, cgan_inference_v2.py, wgan_inference.py, gan_3d_inference_v1.py).
+#   strict=False means a state_dict whose keys no longer match the module tree does NOT raise
+#   -- the mismatched parameters are simply left at their random initialisation and the
+#   generator still returns a brain-shaped image. A torch upgrade that broke those checkpoints
+#   would therefore produce a site that looks like it works and is publishing noise.
+#   Holding torch at 2.0.1 keeps their numerics bit-identical to what is in production today,
+#   so this build changes ONE thing (where the tensors live) instead of two.
+#
+# WHY THE GANs CANNOT BE HURT BY THE MOVE TO A GPU HOST, verified by reading all four modules:
+# each one does
+#       device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#       device = torch.device('cpu')      # <-- immediately overrides the line above
+# (cgan_inference.py:150-151, cgan_inference_v2.py:108-109, wgan_inference.py:151-152,
+# gan_3d_inference_v1.py:61-62), so the cuda line is DEAD CODE in every one of them, and every
+# torch.load passes map_location=torch.device("cpu"). Their device behaviour is a constant, not
+# a function of the host. The torch VERSION is the only thing that can move them, which is why
+# it does not move here.
+# (The one exception is cgan_inference.py:120-121, which calls .to("cuda") unconditionally on
+# the LEGACY braingen_diffuser_BraTS_v1 path. That path has therefore never once executed on
+# the CPU-only container. It is noted, not fixed, and not part of this migration.)
+#
+# CUDA 11.8 IS NOT A FREE CHOICE -- IT IS HALF OF A PAIR. The `+cu118` suffix must match the
+# CUDA runtime of Dockerfile.gpu's base image (nvidia/cuda:11.8.*). Change one and you must
+# change the other in the same commit. The full failure analysis lives in Dockerfile.gpu's
+# header, next to the FROM line it constrains; the short version is that a mismatch presents as
+# torch.cuda.is_available() == False, which is SILENT -- correct images, no exception, ~2 min a
+# sample, and the migration achieves nothing while appearing to succeed.
+#
+# 11.8 SPECIFICALLY, RATHER THAN 11.7 (which torch 2.0.1's PyPI default build uses): the T4 is
+# compute capability 7.5 and works with either, but 11.8 is the newest CUDA torch 2.0.1 ships a
+# build for, so it tolerates the widest range of host driver versions. Note the driver still
+# has to be new enough -- a CUDA 11.8 runtime wants an R520+ driver, or an R450+ driver relying
+# on CUDA minor-version compatibility. `nvidia-smi` on the host answers this before you build.
+#
+# `--extra-index-url` (ADD an index) not `--index-url` (REPLACE PyPI): fastapi, supabase,
+# nibabel and everything else in requirements-common.txt live on PyPI only. And the pin stays
+# unambiguous despite two indexes being in play, because `+cu118` is a PEP 440 local version
+# segment that must match exactly -- PyPI's plain `2.0.1` does not satisfy `==2.0.1+cu118`.
+#
+# NEVER install this file together with requirements.txt in one pip invocation. Index options
+# in a requirements file are GLOBAL to the whole run rather than scoped to the lines below
+# them, so pip would search /whl/cpu and /whl/cu118 simultaneously and resolve torch against a
+# candidate set containing both builds. One target, one file, one index.
+#
+# THE WHEEL EXISTS -- VERIFIED 2026-09-09, not assumed. The cu118 index lists
+#     torch-2.0.1%2Bcu118-cp310-cp310-linux_x86_64.whl
+# (`%2B` is a URL-escaped `+`). Read the three tags, because all three have to be right and
+# each is decided elsewhere in this build: `cp310` is CPython 3.10, which is why Dockerfile.gpu
+# picks the ubuntu22.04 base (system python3 = 3.10) rather than 20.04 or 24.04; and
+# `linux_x86_64` is why the build must target linux/amd64 -- an arm64 machine (Apple Silicon)
+# building without `--platform linux/amd64` finds no candidate and fails outright. That last
+# one at least fails loudly, unlike most things on this page.
+# Re-run the check if the pin ever moves:
+#     curl -s https://download.pytorch.org/whl/cu118/torch/ | grep 2.0.1
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.0.1+cu118
+
+# --- THE ONE THING THIS FILE CANNOT PROMISE --------------------------------------------------
+# Whether diffusers 0.38.0 IMPORTS on torch 2.0.1 is genuinely open, and pip will not answer
+# it: diffusers declares torch only under an optional `torch` extra, so the resolver accepts
+# any torch at all -- or none -- and an incompatibility can surface only as an ImportError at
+# the first live request. Treat it as a question the smoke test answers, never as an assertion.
+#
+# THIS IS THE SMOKE TEST CONDDIFF_MODEL.md 8.6.0 FORWARD-REFERENCES AS "8.10.5". Section 8.10
+# (the GPU host runbook) is still unwritten; until it exists, this block and Dockerfile.gpu's
+# header are the runbook. Keep them in sync if 8.10 is written later.
+# The test costs seconds and runs inside the built image:
+#
+#     docker build --platform linux/amd64 -f Dockerfile.gpu -t socr-image-gen-backend:gpu .
+#     docker run --rm --entrypoint python socr-image-gen-backend:gpu -c \
+#       "import torch, diffusers; from diffusers import UNet2DModel, DDIMScheduler; \
+#        print(torch.__version__, torch.version.cuda, diffusers.__version__)"
+#
+# Expected: `2.0.1+cu118 11.8 0.38.0`. This test needs NO GPU -- run it on any machine, before
+# you ever touch EC2. If it raises, raise torch IN BOTH VARIANT FILES TOGETHER and keep the
+# suffixes paired (+cpu and +cu118 of the same version), then re-test all five GAN models
+# against known-good images, because strict=False will not tell you if you broke them.
+# Note that torch >= 2.6 additionally flips torch.load's default to weights_only=True, which
+# breaks every `load_state_dict(torch.load(...), strict=False)` call in backend/inference/.
+#
+# `torch.cuda.is_available()` is deliberately NOT part of that smoke test: the build machine
+# usually has no GPU, so it would report False for a reason that has nothing to do with the
+# image. That question is answered on the host, by /conddiff-selftest -- see Dockerfile.gpu.

@@ -1,0 +1,378 @@
+# =============================================================================================
+# Dockerfile.gpu -- the GPU image for braingen_CondDiffuser_BraTS_v1 in CONDDIFF_MODE=live
+# =============================================================================================
+# Build:   docker build --platform linux/amd64 -f Dockerfile.gpu -t socr-image-gen-backend:gpu .
+#          `--platform linux/amd64` for the same reason deploy-to-lightsail.sh passes it: the
+#          only torch cu118 wheel is linux_x86_64, and a g4dn host is x86_64. Building on an
+#          arm64 machine without it finds no wheel candidate and fails -- loudly, at least.
+# Run:     see "THE RUN COMMAND" at the bottom of this header -- the --gpus flag is not optional
+# Target:  EC2 g4dn.xlarge class (1 x Tesla T4, 16 GB VRAM, 4 vCPU, 16 GB RAM)
+#
+# ---------------------------------------------------------------------------------------------
+# WHY THIS IS A SEPARATE FILE AND NOT A BUILD ARG ON THE EXISTING Dockerfile
+# ---------------------------------------------------------------------------------------------
+# The alternative considered was one Dockerfile parameterised by `ARG BASE_IMAGE` and
+# `ARG REQUIREMENTS_FILE`. That is a real and often-correct pattern -- ARG is legal before FROM,
+# so `FROM ${BASE_IMAGE}` does work. It was rejected for three reasons, in order of weight.
+#
+# 1. THE TWO BUILDS DIFFER IN THEIR STEPS, NOT JUST IN A VALUE. `python:3.10-slim` is a Debian
+#    image whose entire purpose is to ship a Python interpreter. `nvidia/cuda:*-ubuntu22.04` is
+#    a bare Ubuntu with the CUDA userspace bolted on and NO PYTHON AT ALL -- no `python`, no
+#    `python3-pip`, no `venv` module. This file therefore needs an apt install and a virtualenv
+#    (see below) that the CPU file must not have. A single file expressing that would need
+#    shell conditionals inside RUN layers keyed off an ARG, which is exactly the kind of
+#    Dockerfile nobody can read six months later, and which silently does the wrong half if the
+#    ARG is misspelled at the command line (Docker does not error on an unknown --build-arg by
+#    default; it warns).
+#
+# 2. IT KEEPS THE PRODUCTION BUILD PATH OUT OF THE BLAST RADIUS. `Dockerfile` builds the image
+#    serving five GAN models that currently work. With a build ARG, every experiment on the GPU
+#    branch is an edit to that file, and Docker parses the whole file on every build -- a
+#    mistake in the GPU half can break the CPU build with no GPU involved. With two files, the
+#    CPU path took exactly one line of change (its COPY, because of the requirements include)
+#    and is then frozen. Deploy scripts call a bare `docker build ... .`, which resolves to
+#    `Dockerfile` by Docker's default-filename rule, so they needed no edit at all.
+#
+# 3. ARG-BEFORE-FROM HAS A SCOPE TRAP. An ARG declared before the first FROM is OUTSIDE every
+#    build stage; referencing it after FROM yields an EMPTY STRING unless it is re-declared
+#    inside the stage. That failure is quiet -- you get `pip install -r ` or a blank tag -- and
+#    it is a bad thing to have standing between this project and a production redeploy.
+#
+# THE HONEST COUNTER-ARGUMENT, since the same duplication argument was used to REJECT two
+# requirements files (see requirements-common.txt): two Dockerfiles can drift too. The
+# asymmetry is why the answer differs. A requirements file is a long list of version pins where
+# drift is invisible -- a stale numpy on one target still installs, still imports, and only
+# shows up as wrong numbers. A Dockerfile body is ~20 lines of structure where drift fails
+# LOUDLY at build or boot: a missed COPY is "file not found", a wrong CMD is a container that
+# exits immediately. So the pins are shared (one file, included by both) and the two short
+# recipes are allowed to be two files. If a THIRD target ever appears, revisit this.
+#
+# ---------------------------------------------------------------------------------------------
+# THE CUDA PAIRING RULE -- READ BEFORE CHANGING EITHER SIDE
+# ---------------------------------------------------------------------------------------------
+#     requirements-gpu.txt   torch==2.0.1+cu118      <-->      this file   FROM nvidia/cuda:11.8.*
+#
+# These two lines are ONE decision written in two places. cu118 means "built against CUDA 11.8",
+# and the base image must provide a CUDA 11.8 runtime. Change one, change the other, in the
+# same commit.
+#
+# WHY A MISMATCH IS THE MOST DANGEROUS FAILURE THIS DEPLOYMENT HAS: IT IS SILENT.
+# There is no exception, no traceback, no HTTP 500, and the images that come out are CORRECT.
+# The chain is:
+#       torch cannot initialise CUDA
+#   ->  torch.cuda.is_available() returns False
+#   ->  conddiff_inference.py:417 `DEVICE = "cuda" if torch.cuda.is_available() else "cpu"`
+#       resolves to "cpu"
+#   ->  every /generate request runs the 50-step DDIM loop on 4 vCPUs
+#   ->  ~2 minutes a sample instead of ~1 second
+#   ->  the request blocks uvicorn's event loop (api.py:81 is an `async def` wrapping
+#       synchronous work), /health stops answering, and any health check with a kill threshold
+#       recycles the container mid-request
+# So the entire GPU migration is unachieved while the build, the push and the boot all report
+# success. Nothing fails; it is just slow and occasionally restarts.
+#
+# THE FOUR WAYS TO LAND IN THAT STATE, all of which present identically:
+#   (a) the CPU wheel got installed -- e.g. someone pointed this build at requirements.txt, or
+#       added /whl/cpu as a second index. Diagnostic: `torch_version` ends in `+cpu`.
+#   (b) base/wheel CUDA mismatch -- a cu118 wheel on a CUDA 12.x base, or vice versa.
+#   (c) THE HOST DRIVER IS TOO OLD. A CUDA 11.8 runtime wants an R520+ driver (or R450+ relying
+#       on CUDA minor-version compatibility). Nothing in this image can fix that; run
+#       `nvidia-smi` ON THE HOST before building anything.
+#   (d) THE CONTAINER WAS STARTED WITHOUT `--gpus all`. This is the easiest one to do by
+#       accident, because the image is perfect and the command is short. Without it the NVIDIA
+#       container runtime injects no device nodes and no libcuda.so.1, and torch sees nothing.
+#
+# HOW TO PROVE IT WORKED, and do this BEFORE timing anything with a stopwatch -- a stopwatch
+# answers ambiguously and these answer exactly:
+#       curl -s http://<host>:8000/conddiff-selftest | python -m json.tool
+# Required rows (conddiff_inference.py:1538-1548 builds them):
+#       "mode":           "live"
+#       "device":         "cuda"          <- "cpu" here on a GPU host IS the failure above
+#       "cuda_available": true
+#       "torch_version":  "2.0.1+cu118"   <- a "+cpu" suffix can never see the card
+#       "cuda_built":     "11.8"          <- must match this file's base image tag
+#       "gpu_name":       "Tesla T4"      <- null means torch is not talking to the card
+# Inside the container, `nvidia-smi` (present because of the CUDA base) separates cause (d) from
+# the rest: if nvidia-smi cannot see the card either, the problem is the run command or the
+# host driver, not the wheel.
+#
+# ---------------------------------------------------------------------------------------------
+# IMAGE SIZE -- WHAT THIS COSTS AND WHY IT IS ACCEPTED
+# ---------------------------------------------------------------------------------------------
+# Order of magnitude, uncompressed, to be MEASURED with `docker images` rather than trusted:
+#       CPU image today                       ~1.0-1.5 GB
+#       CUDA 11.8 runtime base alone          ~2-3 GB
+#       + torch cu118 and its nvidia-* deps   ~2-3 GB
+#       => this image                         ~5-7 GB
+# That is 4-5x the CPU image and it is simply the price of CUDA; there is no clever way around
+# it while running real convolutions on a GPU. It is accepted because the constraint it trades
+# against is gone: this image is pulled ONCE onto a persistent EC2 host with an EBS volume, not
+# pushed on every deploy into a $10/month Lightsail container. Disk is cheap on g4dn; two
+# minutes per sample is not.
+#
+# TWO SIZE LEVERS IF IT EVER MATTERS, both to measure before pulling:
+#   - `-runtime` not `-devel`. Already done below. The devel tag adds nvcc and the full CUDA
+#     toolkit, several GB more, and nothing here compiles CUDA.
+#   - The cuDNN duplication. PyTorch's linux wheels generally vendor their own CUDA libraries
+#     as `nvidia-*-cu11` pip packages, which would make the base image's copies redundant
+#     weight. CHECK, do not assume, with
+#         docker run --rm --entrypoint du <image> -sh /opt/venv/lib/python3.10/site-packages/nvidia
+#     If the vendored set is complete, the plain `11.8.0-runtime-ubuntu22.04` base (no cudnn8)
+#     saves ~1 GB. Do NOT take the further step of dropping to a non-CUDA base: `nvidia/cuda`
+#     images also set NVIDIA_VISIBLE_DEVICES / NVIDIA_DRIVER_CAPABILITIES, which is part of how
+#     the container runtime knows to expose the card, and they carry nvidia-smi, which is the
+#     only in-container tool that distinguishes failure (d) from failures (a)-(c).
+#
+# ---------------------------------------------------------------------------------------------
+# THE MODEL ASSETS: COPY AT BUILD, NOT MOUNT AT RUNTIME -- AND WHY
+# ---------------------------------------------------------------------------------------------
+# Live mode needs, on top of the code:
+#       inference/model/diffusion_ema.pt              ~341 MB   the fp32 EMA checkpoint
+#       inference/conddiff_bundle/manifest.json                 the index
+#       inference/conddiff_bundle/cond_slices/*.npy   ~42 MB    9-channel float16 conditioning
+# None of it is in git, and it cannot be: GitHub hard-rejects any single file over 100 MB, and
+# even an fp16 safetensors export is ~171 MB. The bundle arrives by sftp from Great Lakes.
+#
+# RECOMMENDATION: COPY, which is what the unchanged `COPY . .` below already does -- the
+# operator stages the files into backend/inference/ before running `docker build`.
+#
+# Four reasons:
+#   1. IT IS ALREADY THE ESTABLISHED MECHANISM, not a new burden. backend/inference/model/ is
+#      empty in git today (`git ls-files backend/inference/model/` returns nothing) and the five
+#      production GAN .pth files get there exactly this way: a human drops them in, `COPY . .`
+#      bakes them into the image, and .dockerignore does not exclude inference/. Anyone who can
+#      deploy the CPU container has already done this. Introducing a bind-mount only for the
+#      diffusion assets would mean two different rules for weights sitting in the same folder.
+#   2. THE IMAGE BECOMES THE UNIT OF PROVENANCE. This backend serves a published model. An image
+#      digest that fully determines the weights means "which checkpoint produced this figure" is
+#      answerable from the deployment record alone. With a mount, the answer lives in a host
+#      path that nothing versions and a `docker run` line typed by hand months ago.
+#   3. IT FAILS EARLY AND LOUDLY. A missing file is caught by _check_assets() at import, so
+#      /conddiff-selftest reports ready:false immediately after boot. A mis-typed `-v` source
+#      path does not error -- Docker CREATES an empty directory at the mount point and SHADOWS
+#      whatever the image had there, so the container starts clean and every request refuses.
+#   4. IT SURVIVES A MOVE OFF `docker run`. If this ever goes to ECS/Fargate or back to a
+#      container service, the deployment API takes an image reference and there is no host
+#      filesystem to bind-mount from. COPY works on every one of those; a mount works on none.
+#
+# THE COSTS, STATED PLAINLY: ~383 MB added to every push and pull, and changing a checkpoint
+# means a rebuild. Both are tolerable because the checkpoint is FROZEN -- it produced the
+# paper's numbers and is not iterated on.
+#
+# THE ESCAPE HATCH, for when you genuinely are iterating (a step sweep, a re-export):
+#       docker run ... -v /srv/conddiff_bundle:/app/inference/conddiff_bundle:ro ...
+# A mount shadows the baked-in copy at that path. Use it for experiments; do not make it the
+# deployment. And re-read reason 3 first -- a typo in that source path is silent.
+#
+# ---------------------------------------------------------------------------------------------
+# THE RUN COMMAND
+# ---------------------------------------------------------------------------------------------
+#   docker run -d --name socr-backend --restart unless-stopped \
+#     --gpus all \
+#     -p 8000:8000 \
+#     -e SUPABASE_URL="..." -e SUPABASE_KEY="..." -e FRONTEND_URL="https://..." \
+#     -e CONDDIFF_MODE=live -e CONDDIFF_STEPS=50 \
+#     socr-image-gen-backend:gpu
+#
+# `--gpus all` requires the NVIDIA Container Toolkit installed on the EC2 host; the AWS Deep
+# Learning AMIs ship it. CONDDIFF_MODE is passed explicitly even though this image already
+# defaults it to live (see the ENV below): an operator reading the run command should be able
+# to tell which mode production is in without reading Python. CONDDIFF_STEPS=50 is a
+# PLACEHOLDER inherited from conddiff_inference.py, not a measured recommendation -- the paper
+# renders at 200. Set it from the step sweep once that exists.
+# =============================================================================================
+
+# --- BASE: CUDA 11.8 runtime on Ubuntu 22.04 -------------------------------------------------
+# THE TAG IS THREE PAIRED DECISIONS, none of them free:
+#
+#   11.8.0  <- PAIRED WITH requirements-gpu.txt's torch==2.0.1+cu118. See the pairing rule above.
+#             This is the load-bearing half of the tag.
+#   runtime <- NOT `-devel` (adds nvcc and the full toolkit, several GB, and nothing here
+#             compiles CUDA) and NOT `-base` (omits the CUDA runtime libraries and cuDNN
+#             entirely, which is the mismatch this file exists to prevent). `cudnn8` is included
+#             because every convolution in the U-Net goes through cuDNN.
+#   ubuntu22.04 <- CHOSEN FOR ITS PYTHON, which is the non-obvious part. Ubuntu 22.04's system
+#             python3 is 3.10 -- the SAME MINOR VERSION as the CPU image's python:3.10-slim.
+#             That matters because wheels are built per minor version (cp310), so both images
+#             resolve requirements-common.txt to the same wheel files and the shared pin list
+#             means what it says. ubuntu20.04 would give Python 3.8 and ubuntu24.04 Python 3.12,
+#             either of which would quietly make the two targets different environments in a
+#             second dimension while the requirements files looked identical.
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# Set working directory
+# IDENTICAL TO THE CPU IMAGE ON PURPOSE, AND LOAD-BEARING. Every inference module builds its
+# paths as os.path.join(os.getcwd(), "inference/...") -- conddiff_inference.py:331-336,
+# cgan_inference_v2.py:122, wgan_inference.py:159, gan_3d_inference_v1.py:77. Combined with
+# `COPY . .` (which copies the CONTENTS of backend/ into /app) and uvicorn being launched from
+# here, os.getcwd() == "/app" and those resolve to /app/inference/... . Change this line and
+# every model on the site stops finding its weights, with no other change anywhere.
+WORKDIR /app
+
+# --- Python, which the CUDA base does not have -----------------------------------------------
+# This whole layer has no counterpart in the CPU Dockerfile: python:3.10-slim already IS a
+# Python image. nvidia/cuda is a bare Ubuntu with the CUDA userspace added, so the interpreter,
+# pip and the venv module all have to be installed. This is reason 1 in the "why a separate
+# file" argument at the top -- it is a difference in STEPS, not in a value.
+#
+# gcc/g++ mirror the CPU image's system dependencies so that any pin needing a source build
+# behaves the same on both targets.
+#
+# DEBIAN_FRONTEND=noninteractive is scoped to this RUN with a shell prefix rather than set as a
+# container-wide ENV: some apt packages (tzdata) block on an interactive prompt at build time
+# and would hang the build forever, but leaking that setting into the RUNTIME environment would
+# also change how anything exec'd into this container later behaves. One-shot is enough.
+#
+# --no-install-recommends keeps apt from dragging in documentation and suggested packages;
+# rm -rf /var/lib/apt/lists/* discards the ~40 MB package index in the SAME layer, because a
+# separate `RUN rm` would leave it in the previous layer and shrink nothing.
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        python3.10 \
+        python3.10-venv \
+        python3-pip \
+        gcc \
+        g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# --- A virtualenv, rather than installing into the system Python -----------------------------
+# WHY BOTHER, when the CPU image installs straight into its system Python? Because "the system
+# Python" means something different on the two bases. On python:3.10-slim it is an interpreter
+# that exists to be pip'd into. On Ubuntu it is an OS component that apt owns, and pip writing
+# into it is increasingly refused outright: PEP 668 marks distro interpreters
+# EXTERNALLY-MANAGED, and pip then hard-errors with "error: externally-managed-environment"
+# rather than installing. Ubuntu 22.04's pip 22.0.2 does not enforce it yet, so a system
+# install would work TODAY and break the first time this base tag is bumped -- which is exactly
+# the kind of latent failure to spend three lines avoiding now.
+#
+# Putting the venv first on PATH means every later `pip` and `python` in this file, in the
+# HEALTHCHECK and in CMD resolves to the venv's without any activation step -- `activate` is a
+# shell function and does not survive between Docker layers, so PATH is the correct mechanism.
+#
+# It also creates the `python` name. Ubuntu ships `python3` only, with no unsuffixed `python`
+# binary; the venv's bin/ provides both, which is why the HEALTHCHECK and CMD below can be
+# written the same way as the CPU image's.
+ENV VIRTUAL_ENV=/opt/venv
+RUN python3.10 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+# Copy requirements first for better caching
+#
+# BOTH FILES, AND THE SECOND ONE IS NOT OPTIONAL. requirements-gpu.txt's first directive is
+# `-r requirements-common.txt`, the shared pin list. pip resolves that include relative to the
+# directory of the file containing it (/app here) and reads it off disk at install time, so
+# copying only requirements-gpu.txt fails with
+#     ERROR: Could not open requirements file: [Errno 2] ... 'requirements-common.txt'
+#
+# requirements.txt (the CPU variant) is deliberately NOT copied here. Naming it would put it in
+# this layer's cache key for no benefit, and -- much worse -- having it adjacent invites
+# someone to "helpfully" add it to the pip line below. That would put the /whl/cpu index in the
+# same pip run as /whl/cu118, because index options in a requirements file are GLOBAL to the
+# invocation rather than scoped to the lines under them, and the resolver would be choosing
+# torch from a candidate set containing both builds. It still reaches /app via `COPY . .`
+# further down, after pip has finished, which is harmless.
+COPY requirements-gpu.txt requirements-common.txt ./
+
+# Install Python dependencies
+#
+# THE ONLY LINE IN THIS FILE THAT DIFFERS FROM THE CPU IMAGE BY A FILENAME. requirements-gpu.txt
+# = requirements-common.txt (every shared pin) + torch==2.0.1+cu118 from the PyTorch cu118
+# index. Point this at requirements.txt by mistake and you get a working, correct, CPU-only
+# container on a GPU host -- failure (a) in the list at the top of this file, which no test
+# except /conddiff-selftest will tell you about.
+#
+# --no-cache-dir matters far more here than on the CPU image: pip's wheel cache would otherwise
+# retain a second copy of the ~2 GB torch download inside the layer.
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements-gpu.txt
+
+# Copy all backend files
+#
+# THIS IS ALSO HOW THE MODEL WEIGHTS GET IN -- see "THE MODEL ASSETS" at the top. .dockerignore
+# excludes caches, .env and test files but NOT inference/, so whatever the operator has staged
+# into backend/inference/model/ and backend/inference/conddiff_bundle/ is baked in here. That is
+# the same mechanism the five GAN .pth files already use.
+#
+# NOTE THE SILENT MODE: if the assets were not staged, this COPY does not fail -- it simply
+# copies fewer files. The build succeeds, the container boots, and _check_assets() reports
+# ready:false on /conddiff-selftest. Check that endpoint after every rebuild; do not treat a
+# green build as evidence the checkpoint is present.
+COPY . .
+
+# Create data directory for fallback storage
+RUN mkdir -p /app/data
+
+# Send Python's stdout/stderr straight to the Docker log instead of buffering it.
+#
+# WHY IT IS HERE AND NOT IN THE CPU IMAGE: Lightsail collects logs through its own agent, but
+# this host is a plain `docker run`, so `docker logs` is the only view of what the process is
+# saying. conddiff_inference.py prints its resolved mode, paths and asset status at import
+# (line ~1325) -- exactly the diagnostics needed after a boot -- and with the default block
+# buffering on a non-tty those sit unflushed in a 4-8 KB buffer, so a container that is starting
+# up (or wedged) looks silent. This makes the startup banner appear when it happens.
+ENV PYTHONUNBUFFERED=1
+
+# The live-mode default, baked in.
+#
+# conddiff_inference.py:309 ALREADY defaults CONDDIFF_MODE to "live" when the variable is
+# absent, so this line changes no behaviour. It is here to make the IMAGE self-describing:
+# `docker inspect` on this image states its intent without anyone reading Python, and the
+# gallery/live question cannot be decided by an omission in a hand-typed run command.
+#
+# The mirror image of this is the CPU deploy scripts, which pass CONDDIFF_MODE=gallery
+# EXPLICITLY into the deployment JSON they generate. That is a safety interlock, not a
+# preference: the Lightsail micro container (0.25 vCPU / 1 GB) cannot hold a 341 MB fp32
+# checkpoint, and a live request there blocks uvicorn's event loop until the health check
+# replaces the container -- taking the five working GAN models down with it. Two targets, two
+# explicit values, and neither one relying on a default.
+#
+# `docker run -e CONDDIFF_MODE=gallery` still overrides this, which is the correct precedence:
+# useful for serving the pre-rendered gallery from this host while the bundle is in transit.
+ENV CONDDIFF_MODE=live
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+#
+# THIS DIFFERS FROM THE CPU IMAGE'S, DELIBERATELY, IN THREE WAYS -- because it is the only
+# health check on this host. Lightsail ignores the Dockerfile HEALTHCHECK and uses the
+# publicEndpoint healthCheck in its deployment JSON instead; a plain `docker run` has nothing
+# else, so this one has to actually be right.
+#
+#   raise_for_status() -- the CPU image's check calls requests.get() and discards the result,
+#   so a 500 from a backend that has failed to load its models still counts as healthy. The
+#   only thing it can detect is a process that is not listening at all. One extra call makes it
+#   mean what its name says.
+#
+#   timeout 30s (vs 10s) -- api.py:81 is an `async def` wrapping synchronous work, so a live
+#   DDIM request occupies the event loop and /health cannot be answered until it finishes.
+#   At ~1 s a sample on a T4 that is brief, but n_images loops sequentially and the first
+#   request also pays a one-off ~341 MB checkpoint load. A tight timeout would classify a busy
+#   container as a dead one. This is the same coupling that makes live mode impossible on
+#   Lightsail; here the numbers are small enough that a generous timeout absorbs it.
+#
+#   start-period 90s (vs 40s) -- torch with CUDA takes appreciably longer to import than the
+#   CPU wheel, and CUDA context initialisation on first use adds several seconds more.
+#   Failures during the start period do not count against retries.
+#
+# `requests` is not a direct pin in requirements-common.txt; it arrives as a transitive of
+# diffusers (and of supabase). That is worth knowing rather than discovering: the CPU image's
+# identical line threw ImportError every 30 s for as long as nothing pulled requests in, and it
+# went unnoticed only because Lightsail was not using it. If diffusers is ever dropped, this
+# line breaks -- pin requests explicitly at that point rather than deleting the check.
+HEALTHCHECK --interval=30s --timeout=30s --start-period=90s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8000/health').raise_for_status()"
+
+# Run the application
+#
+# --workers 1 IS NOT A LEFTOVER FROM THE 0.25-vCPU CONTAINER; IT IS REQUIRED HERE FOR A
+# DIFFERENT REASON. Each uvicorn worker is a separate PROCESS with its own address space and
+# its own CUDA context, and conddiff_inference.py caches the U-Net in a module-level singleton
+# (_MODEL). Two workers means two ~341 MB copies of the weights resident in VRAM plus two CUDA
+# contexts (a few hundred MB each), and requests landing on different workers would contend for
+# the single T4's SMs -- turning two concurrent 1-second samples into two slower ones rather
+# than into parallelism. The T4's 16 GB would survive it; the point is that it buys nothing.
+# Real concurrency for this model is the async job pattern described in CONDDIFF_MODEL.md 8.8,
+# not more workers.
+CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

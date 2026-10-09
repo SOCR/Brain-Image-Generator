@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { User } from '@supabase/supabase-js';
 import { Project } from '@/types/database';
 import { ProjectSwitcher } from './project-switcher';
-import { HelpCircle, ExternalLink, LogOut, Settings, User as UserIcon, Sun, Moon } from 'lucide-react';
+import { HelpCircle, ExternalLink, LogOut, Settings, User as UserIcon, Sun, Moon, Brain } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useEffect, useState } from 'react';
 import { signOutAction } from '@/app/actions';
@@ -77,6 +77,14 @@ export function DashboardHeader({
       </div>
 
       <div className="flex items-center gap-2">
+        {/* Standalone volume viewer (public, like the playground) */}
+        <Link href="/viewer">
+          <Button variant="ghost" size="sm" className="gap-1.5 text-gray-600 dark:text-gray-300">
+            <Brain className="h-4 w-4" />
+            <span className="hidden sm:inline">Brain Viewer</span>
+          </Button>
+        </Link>
+
         {/* Documentation/Help links */}
         <Button variant="ghost" size="icon" className="hidden md:flex text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
           <HelpCircle className="h-5 w-5" />

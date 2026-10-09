@@ -99,7 +99,12 @@ IMAGE_REF=$(aws lightsail get-container-images --service-name $SERVICE_NAME --re
 echo -e "${GREEN}✓ Image pushed: $IMAGE_REF${NC}"
 
 echo -e "\n${BLUE}Step 4: Creating deployment configuration...${NC}"
-# Create deployment JSON
+# Create deployment JSON.
+# CONDDIFF_MODE is passed EXPLICITLY: conddiff_inference.py defaults to "live" when it is
+# unset, and live DDIM sampling on the Lightsail micro container (0.25 vCPU / 1 GB) blocks
+# uvicorn's event loop until the healthCheck replaces the container -- which takes the five
+# GAN models offline too. lightsail-config.json is not read by this script, so pinning the
+# mode there alone changes nothing; it has to be in the JSON generated below.
 cat > deployment.json <<EOF
 {
   "containers": {
@@ -111,7 +116,8 @@ cat > deployment.json <<EOF
       "environment": {
         "SUPABASE_URL": "$SUPABASE_URL",
         "SUPABASE_KEY": "$SUPABASE_KEY",
-        "FRONTEND_URL": "${FRONTEND_URL:-*}"
+        "FRONTEND_URL": "${FRONTEND_URL:-*}",
+        "CONDDIFF_MODE": "${CONDDIFF_MODE:-gallery}"
       }
     }
   },

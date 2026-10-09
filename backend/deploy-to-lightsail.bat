@@ -85,6 +85,13 @@ set IMAGE_REF=%ECR_REPO%:%IMAGE_TAG%
 REM Set default FRONTEND_URL if not set
 if "%FRONTEND_URL%"=="" set FRONTEND_URL=*
 
+REM Pin braingen_CondDiffuser_BraTS_v1 to gallery mode on this target. conddiff_inference.py
+REM DEFAULTS TO "live" when CONDDIFF_MODE is unset, and live DDIM sampling on the micro
+REM container (0.25 vCPU / 1 GB) blocks uvicorn's event loop until the healthCheck replaces
+REM the container -- which takes the five GAN models offline with it. lightsail-config.json is
+REM not read by this script, so the variable has to be in the JSON generated below.
+if "%CONDDIFF_MODE%"=="" set CONDDIFF_MODE=gallery
+
 REM Create deployment JSON
 (
 echo {
@@ -97,7 +104,8 @@ echo       },
 echo       "environment": {
 echo         "SUPABASE_URL": "%SUPABASE_URL%",
 echo         "SUPABASE_KEY": "%SUPABASE_KEY%",
-echo         "FRONTEND_URL": "%FRONTEND_URL%"
+echo         "FRONTEND_URL": "%FRONTEND_URL%",
+echo         "CONDDIFF_MODE": "%CONDDIFF_MODE%"
 echo       }
 echo     }
 echo   },
