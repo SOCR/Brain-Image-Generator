@@ -34,6 +34,13 @@ def add_to_database(file_url, user_id, project_id, model_name, parameters_used, 
         The ID of the inserted record
     """
     try:
+        # generated_images has no model column, so record the model inside the parameters; the
+        # Library card and the downloaded params.json read it from there.
+        if model_name and isinstance(parameters_used, dict):
+            parameters_used = {**parameters_used, "model_name": model_name}
+        elif model_name and parameters_used is None:
+            parameters_used = {"model_name": model_name}
+
         # Convert parameters to JSONB if it's not already a string
         if not isinstance(parameters_used, str):
             parameters_used = json.dumps(parameters_used)

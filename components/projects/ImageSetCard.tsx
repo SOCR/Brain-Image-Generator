@@ -22,6 +22,7 @@ export interface ImageSet {
   model: string
   imageCount: number
   thumbnailUrl: string | null
+  params?: unknown // parameters_used from the database, written into the download's params.json
   images: {
     t1: string | null
     t2: string | null

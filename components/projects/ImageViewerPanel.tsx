@@ -7,6 +7,13 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { toast } from '@/hooks/use-toast'
 import {
   Loader2,
@@ -17,11 +24,15 @@ import {
   Tag,
   Eye,
   Grid3X3,
-  Square
+  Square,
+  Download,
+  FileArchive
 } from 'lucide-react'
 import NiiVueViewer from '@/components/projects/NiiVueViewer'
 import ColorMappedImage from '@/components/projects/ColorMappedImage'
 import { GeneratingTextEffect } from '@/components/projects/GeneratingTextEffect'
+import { downloadSetZip, downloadUrl, fileNameFromUrl } from '@/lib/download'
+import { ImageDownloadButton, runDownload } from '@/components/projects/DownloadButtons'
 
 // Define image types
 type ImageType = 't1' | 't2' | 'flair' | 'seg' | 't1ce'
@@ -42,6 +53,9 @@ export interface ImageSet {
   images: Record<ImageType, string | null>
   name: string
   createdAt: string
+  // What produced the set; written into params.json when the set is downloaded as a zip.
+  model?: string
+  params?: unknown
 }
 
 interface ImageViewerPanelProps {
@@ -74,6 +88,49 @@ export default function ImageViewerPanel({
   const [rotation, setRotation] = useState(0)
   const [flipH, setFlipH] = useState(false)
   const [flipV, setFlipV] = useState(false)
+  // The tumor mask is no longer its own window: it is drawn over every image at this opacity.
+  const [maskOpacity, setMaskOpacity] = useState(0.5)
+
+  // "Download" menu for a set: each file on its own, or everything as one zip with params.json.
+  // Available to every user, playground included -- the files are already public Supabase URLs.
+  const renderDownloadMenu = (set: ImageSet) => {
+    const seen = new Set<string>()
+    const files = IMAGE_TYPES.flatMap(type => {
+      const url = set.images[type]
+      if (!url || seen.has(url)) return []
+      seen.add(url)
+      const label = url.includes('.nii') ? '3D volume' : IMAGE_TYPE_NAMES[type]
+      return [{ label, url }]
+    })
+    if (files.length === 0) return null
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5">
+            <Download size={14} />
+            Download
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-60">
+          {files.map(({ label, url }) => (
+            <DropdownMenuItem key={url} onSelect={() => runDownload(label, () => downloadUrl(url))}>
+              <Download className="mr-2 h-4 w-4" />
+              <span className="flex-1">{label}</span>
+              <span className="text-xs text-gray-400">{fileNameFromUrl(url)}</span>
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {/* No dimensionType passed: the zip works it out from the files, because the page's
+              2D/3D toggle may have changed since this set was generated. */}
+          <DropdownMenuItem onSelect={() => runDownload(set.name, () => downloadSetZip(set))}>
+            <FileArchive className="mr-2 h-4 w-4" />
+            All files (.zip)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
   // Render content based on selected model type (2D/3D)
   const renderContent = () => {
     if (isGenerating) {
@@ -125,8 +182,13 @@ export default function ImageViewerPanel({
       return <div className="flex-1 flex items-center justify-center text-gray-500">No image set selected</div>
     }
 
-    // Get available image types for this set
-    const availableTypes = IMAGE_TYPES.filter(type => currentSet.images[type])
+    // Image types shown as windows. The tumor mask is NOT one of them -- it is overlaid on every
+    // image instead -- unless it is somehow the only image in the set.
+    const nonMaskTypes = IMAGE_TYPES.filter(type => type !== 'seg' && currentSet.images[type])
+    const availableTypes: ImageType[] = nonMaskTypes.length > 0 ? nonMaskTypes : IMAGE_TYPES.filter(type => currentSet.images[type])
+    const maskUrl = nonMaskTypes.length > 0 ? currentSet.images.seg : null
+    // The parent may still hold 'seg' (or a type this set lacks) as the selection; never show a blank tab.
+    const activeType = availableTypes.includes(selectedImageType) ? selectedImageType : availableTypes[0]
 
     return (
       <>
@@ -178,6 +240,7 @@ export default function ImageViewerPanel({
                     <div className="text-sm">
                       <span className="font-medium">Available contrasts:</span>{' '}
                       {availableTypes.map(type => IMAGE_TYPE_NAMES[type]).join(', ')}
+                      {maskUrl && ' + Tumor Mask (overlay)'}
                     </div>
                   </div>
                 </div>
@@ -185,15 +248,18 @@ export default function ImageViewerPanel({
             </Popover>
           </div>
 
-          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            {selectedSetIndex + 1} / {imageSets.length}
+          <div className="flex items-center gap-3">
+            {renderDownloadMenu(currentSet)}
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              {selectedSetIndex + 1} / {imageSets.length}
+            </div>
           </div>
         </div>
 
         {/* Scrollable Image content area */}
         <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
           <Tabs
-            value={selectedImageType}
+            value={activeType}
             onValueChange={(v) => setSelectedImageType(v as ImageType)}
             className="h-full flex flex-col"
           >
@@ -228,8 +294,11 @@ export default function ImageViewerPanel({
                       onFlipHChange={setFlipH}
                       onFlipVChange={setFlipV}
                       controlsOnly={true}
+                      hasOverlay={!!maskUrl}
+                      overlayOpacity={maskOpacity}
+                      onOverlayOpacityChange={setMaskOpacity}
                     />
-                    
+
                     <div className="absolute inset-0 bg-gray-50 dark:bg-gray-950 p-4 pl-60">
                       <div className={`
                         grid gap-4 h-full w-full
@@ -244,6 +313,12 @@ export default function ImageViewerPanel({
                             <div className="absolute top-2 left-2 z-10 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-3 py-1 rounded-md shadow text-sm font-medium">
                               {IMAGE_TYPE_NAMES[gridType]}
                             </div>
+                            {currentSet.images[gridType] && (
+                              // Bottom-right: the top-right corner of the grid is taken by the Single View button.
+                              <div className="absolute bottom-2 right-2 z-10">
+                                <ImageDownloadButton url={currentSet.images[gridType]!} label={IMAGE_TYPE_NAMES[gridType]} />
+                              </div>
+                            )}
                             {currentSet.images[gridType] ? (
                               <ColorMappedImage
                                 src={currentSet.images[gridType] || ''}
@@ -257,6 +332,8 @@ export default function ImageViewerPanel({
                                 rotation={rotation}
                                 flipH={flipH}
                                 flipV={flipV}
+                                overlaySrc={maskUrl}
+                                overlayOpacity={maskOpacity}
                               />
                             ) : (
                               <div className="flex items-center justify-center h-full">
@@ -292,6 +369,9 @@ export default function ImageViewerPanel({
                         onRotationChange={setRotation}
                         onFlipHChange={setFlipH}
                         onFlipVChange={setFlipV}
+                        overlaySrc={maskUrl}
+                        overlayOpacity={maskOpacity}
+                        onOverlayOpacityChange={setMaskOpacity}
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
@@ -306,7 +386,9 @@ export default function ImageViewerPanel({
                 {/* Tab switcher and view toggle - top right corner */}
                 <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
                   {/* View mode toggle */}
-                  {availableTypes.length > 1 && (
+                  {/* Also shown while in grid view, so a 1-image set (e.g. FLAIR + overlaid mask)
+                      reached from grid view can always get back to single view. */}
+                  {(availableTypes.length > 1 || viewMode === 'grid') && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -327,6 +409,10 @@ export default function ImageViewerPanel({
                     </Button>
                   )}
                   
+                  {/* Download the image currently shown (single view) */}
+                  {viewMode === 'single' && currentSet.images[type] &&
+                    <ImageDownloadButton url={currentSet.images[type]!} label={IMAGE_TYPE_NAMES[type]} />}
+
                   {/* Tab switcher - only show in single view */}
                   {viewMode === 'single' && (
                     <TabsList className="p-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
@@ -451,8 +537,11 @@ export default function ImageViewerPanel({
             </Popover>
           </div>
 
-          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-            {selectedSetIndex + 1} / {imageSets.length}
+          <div className="flex items-center gap-3">
+            {renderDownloadMenu(currentSet)}
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+              {selectedSetIndex + 1} / {imageSets.length}
+            </div>
           </div>
         </div>
 

@@ -32,6 +32,58 @@ interface ColorMappedImageProps {
   onRotationChange?: (rotation: number) => void
   onFlipHChange?: (flipH: boolean) => void
   onFlipVChange?: (flipV: boolean) => void
+  // Tumor-mask overlay: the set's seg.png drawn over this image at `overlayOpacity` (0..1).
+  overlaySrc?: string | null
+  overlayOpacity?: number
+  onOverlayOpacityChange?: (opacity: number) => void
+  hasOverlay?: boolean // controlsOnly mode has no src of its own, so it is told whether to show the slider
+}
+
+// Mask pixels below this grey level are background and stay transparent. Every model writes the
+// mask background as 0 (the diffusion model writes edema 170 / enhancing core 255; the GANs write
+// a min-max-stretched map). Measured 2026-10-09 on "Without Tumor" GAN masks: at 40 the Wavelet
+// GAN's faint haze still covered 2.2% of the slice; at 64 it is ~0.1%, while real lesions
+// (>= 128 after the stretch) are kept.
+const MASK_MIN = 64
+// Colour ramp for mask intensity: green (dim, e.g. edema) -> blue (bright, e.g. enhancing core).
+// Green/blue rather than red/yellow so the mask stays visible on the default magma colormap.
+const MASK_LOW: [number, number, number] = [34, 197, 94]
+const MASK_HIGH: [number, number, number] = [37, 99, 235]
+
+function maskColor(v: number): [number, number, number] {
+  const t = (v - MASK_MIN) / (255 - MASK_MIN)
+  return [0, 1, 2].map(i => MASK_LOW[i] + (MASK_HIGH[i] - MASK_LOW[i]) * t) as [number, number, number]
+}
+
+// The slider + legend, shown in both the per-image and the shared (grid) controls panel.
+function MaskOverlayControl({ opacity, onChange }: { opacity: number; onChange: (v: number) => void }) {
+  return (
+    <div className="pt-2 border-t">
+      <Label className="text-xs text-gray-600 dark:text-gray-400 mb-1.5 block">
+        Tumor Mask Overlay
+      </Label>
+      <Slider
+        min={0}
+        max={1}
+        step={0.05}
+        value={[opacity]}
+        onValueChange={(v) => onChange(v[0])}
+        className="w-full"
+        aria-label="Tumor mask overlay opacity"
+      />
+      <div className="flex items-center justify-between mt-1">
+        <span className="text-xs text-gray-500 dark:text-gray-400">{Math.round(opacity * 100)}%</span>
+        <div className="flex items-center gap-1" title="Mask value: dim (green) to bright (blue)">
+          <span className="text-[10px] text-gray-400">low</span>
+          <span
+            className="h-2 w-10 rounded-sm"
+            style={{ background: `linear-gradient(to right, rgb(${MASK_LOW}), rgb(${MASK_HIGH}))` }}
+          />
+          <span className="text-[10px] text-gray-400">high</span>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // Define colormap types
@@ -126,12 +178,20 @@ export default function ColorMappedImage({
   onZoomChange,
   onRotationChange,
   onFlipHChange,
-  onFlipVChange
+  onFlipVChange,
+  overlaySrc = null,
+  overlayOpacity = 0,
+  onOverlayOpacityChange,
+  hasOverlay
 }: ColorMappedImageProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const colorbarCanvasRef = useRef<HTMLCanvasElement>(null)
   const imageRef = useRef<HTMLImageElement | null>(null)
+  const overlayRef = useRef<HTMLImageElement | null>(null)
+  // Bumped when the mask image finishes loading, so the canvas redraws with it.
+  const [overlayVersion, setOverlayVersion] = useState(0)
+  const showOverlayControl = (hasOverlay ?? !!overlaySrc) && !!onOverlayOpacityChange
   
   // Use controlled or uncontrolled state
   const [internalColorMap, setInternalColorMap] = useState<ColorMap>('magma')
@@ -237,23 +297,49 @@ export default function ColorMappedImage({
       return
     }
     
+    // A stale image (the user switched sets before it arrived) must not be drawn: it would be
+    // painted with the NEW set's mask, which the mask effect below has already swapped in.
+    let cancelled = false
+    imageRef.current = null
     const img = new Image()
     img.crossOrigin = 'anonymous' // For CORS if needed
-    
+
     img.onload = () => {
+      if (cancelled) return
       imageRef.current = img
       setDimensions({ width: img.width, height: img.height })
       setIsLoading(false)
       applyColorMap()
     }
-    
+
     img.onerror = () => {
+      if (cancelled) return
       console.error('Failed to load image:', src)
       setIsLoading(false)
     }
-    
+
     img.src = src
+    return () => { cancelled = true }
   }, [src, controlsOnly])
+
+  // Load the tumor mask (if any). Same CORS setting as the main image, because the pixels are
+  // read back with getImageData, which a cross-origin image without CORS would forbid.
+  useEffect(() => {
+    overlayRef.current = null
+    setOverlayVersion(v => v + 1)
+    if (controlsOnly || !overlaySrc) return
+    let cancelled = false
+    const mask = new Image()
+    mask.crossOrigin = 'anonymous'
+    mask.onload = () => {
+      if (cancelled) return
+      overlayRef.current = mask
+      setOverlayVersion(v => v + 1)
+    }
+    mask.onerror = () => console.error('Failed to load tumor mask:', overlaySrc)
+    mask.src = overlaySrc
+    return () => { cancelled = true }
+  }, [overlaySrc, controlsOnly])
 
   // Apply colormap whenever settings change
   useEffect(() => {
@@ -263,7 +349,7 @@ export default function ColorMappedImage({
         drawColorbar()
       }
     }
-  }, [colorMap, brightness, contrast, rotation, flipH, flipV, isLoading, showColorbar])
+  }, [colorMap, brightness, contrast, rotation, flipH, flipV, isLoading, showColorbar, overlayOpacity, overlayVersion])
   
   // Reset pan when zoom changes to 1.0
   useEffect(() => {
@@ -315,9 +401,28 @@ export default function ColorMappedImage({
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const data = imageData.data
 
+    // Rasterise the mask with the SAME rotation/flip onto a scratch canvas, scaled to the
+    // image's size, so mask pixel i lines up with image pixel i. Done here rather than as a
+    // second <canvas> stacked on top so zoom/pan (CSS on this canvas) moves both together.
+    let mask: Uint8ClampedArray | null = null
+    const maskImg = overlayRef.current
+    if (maskImg && overlayOpacity > 0) {
+      const scratch = document.createElement('canvas')
+      scratch.width = canvas.width
+      scratch.height = canvas.height
+      const sctx = scratch.getContext('2d', { willReadFrequently: true })
+      if (sctx) {
+        sctx.translate(canvas.width / 2, canvas.height / 2)
+        sctx.rotate((rotation * Math.PI) / 180)
+        sctx.scale(flipH ? -1 : 1, flipV ? -1 : 1)
+        sctx.drawImage(maskImg, -img.width / 2, -img.height / 2, img.width, img.height)
+        mask = sctx.getImageData(0, 0, canvas.width, canvas.height).data
+      }
+    }
+
     // Apply colormap
     const colormapFunc = COLORMAPS[colorMap]
-    
+
     for (let i = 0; i < data.length; i += 4) {
       // Get grayscale value (average of RGB or use R channel if already grayscale)
       const gray = data[i] // Assuming grayscale, otherwise: (data[i] + data[i+1] + data[i+2]) / 3
@@ -328,11 +433,19 @@ export default function ColorMappedImage({
       
       // Apply colormap
       const [r, g, b] = colormapFunc(adjusted)
-      
+
       data[i] = r
       data[i + 1] = g
       data[i + 2] = b
       // Keep alpha unchanged: data[i + 3]
+
+      // Blend the mask colour over tumour pixels only; background (dim mask) stays untouched.
+      if (mask && mask[i] >= MASK_MIN) {
+        const [mr, mg, mb] = maskColor(mask[i])
+        data[i] = r + (mr - r) * overlayOpacity
+        data[i + 1] = g + (mg - g) * overlayOpacity
+        data[i + 2] = b + (mb - b) * overlayOpacity
+      }
     }
 
     // Put modified data back
@@ -540,10 +653,14 @@ export default function ColorMappedImage({
             </Button>
           </div>
         </div>
+
+        {showOverlayControl && (
+          <MaskOverlayControl opacity={overlayOpacity} onChange={onOverlayOpacityChange!} />
+        )}
       </div>
     )
   }
-  
+
   // Compact view for grid
   if (compact) {
     return (
@@ -773,6 +890,10 @@ export default function ColorMappedImage({
               onCheckedChange={setShowColorbar}
             />
           </div>
+
+          {showOverlayControl && (
+            <MaskOverlayControl opacity={overlayOpacity} onChange={onOverlayOpacityChange!} />
+          )}
         </div>
       )}
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { toast } from '@/hooks/use-toast'
 import ParameterControlPanel from '@/components/projects/ParameterControlPanel'
 import ImageViewerPanel, { ImageSet } from '@/components/projects/ImageViewerPanel'
+import { parseParams } from '@/lib/download'
 
 interface GenerationPageClientProps {
   projectId: string
@@ -21,6 +22,9 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   const [selectedModel, setSelectedModel] = useState<string>('')
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedImageIds, setGeneratedImageIds] = useState<string[]>([])
+  // The model + parameters of the request that produced `generatedImageIds`, captured at
+  // request time (the controls may have changed since) so a downloaded zip records them.
+  const [generationMeta, setGenerationMeta] = useState<{ model: string; params: unknown } | null>(null)
 
   // State for image sets
   const [imageSets, setImageSets] = useState<ImageSet[]>([])
@@ -113,6 +117,8 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
               id: setId,
               name: `Playground Set ${Object.keys(sets).length + 1}`,
               createdAt: new Date().toISOString(),
+              model: generationMeta?.model,
+              params: generationMeta?.params,
               images: {
                 't1': null,
                 't2': null,
@@ -185,6 +191,9 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
                   id: setName,
                   name: setName,
                   createdAt: image.created_at,
+                  model: generationMeta?.model,
+                  // What the backend stored (may include extras such as a seed), else what we sent.
+                  params: parseParams(image.parameters_used) ?? generationMeta?.params,
                   images: {
                     't1': null,
                     't2': null,
@@ -233,6 +242,8 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
     }
 
     fetchImageDetails()
+    // generationMeta is set in the same handler as generatedImageIds (one batched render), so it
+    // is already current when this runs; it is deliberately not a dependency.
   }, [generatedImageIds, isPlayground])
 
   // Prepare parameters based on selected model
@@ -337,6 +348,7 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         throw new Error('The backend returned no images. Check the backend logs for the cause.')
       }
 
+      setGenerationMeta({ model: requestBody.model_name, params: requestBody.params })
       setGeneratedImageIds(data.image_ids)
       // Report what actually came back, not what was asked for.
       toast({
