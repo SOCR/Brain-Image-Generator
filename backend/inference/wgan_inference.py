@@ -76,6 +76,24 @@ def class_embedding(tumour,slice_orientation,slice_location):
                       
    return class_label
                   
+
+def orient_slice(image, slice_orientation, upside_down_planes):
+    """Turn a generated slice into standard display orientation (superior up / anterior up).
+
+    Measured 2026-10-16 on generated samples (brain-mask shape vs. reference views): axial slices
+    come out rotated 90 degrees counter-clockwise (anterior on the left), and some models emit
+    sagittal/coronal slices with superior and inferior swapped. Every channel of a set (incl. the
+    seg mask) goes through this, so masks stay aligned. Axial uses a pure rotation, never a
+    transpose, so left/right is left exactly as the model produced it.
+    """
+    if slice_orientation == 'Axial':
+        return np.rot90(image, -1)                       # clockwise: anterior to the top
+    if slice_orientation in ('Sagittal', 'Coronal'):
+        image = np.rot90(image)
+        if upside_down_planes:
+            image = np.flipud(image)                     # superior to the top
+    return image
+
 def save_images(images, slice_orientation, save_path, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):
     # Define the tags for the images
     tags = ['t1', 't1ce', 't2', 'flair', 'seg']
@@ -97,8 +115,7 @@ def save_images(images, slice_orientation, save_path, user_id=None, project_id=N
             filename = f"{tags[i]}.png"
             
             # Rotate the image if needed
-            if slice_orientation == 'Sagittal' or slice_orientation == 'Coronal':
-                image = np.rot90(image)
+            image = orient_slice(image, slice_orientation, upside_down_planes=True)
                 
             # Upload to Supabase and get the URL
             url = upload_image_to_supabase(
@@ -127,8 +144,7 @@ def save_images(images, slice_orientation, save_path, user_id=None, project_id=N
             filepath = os.path.join(folder_path, filename)
 
             # Rotate the image if needed
-            if slice_orientation == 'Sagittal' or slice_orientation == 'Coronal':
-                image = np.rot90(image)
+            image = orient_slice(image, slice_orientation, upside_down_planes=True)
 
             # Normalize the image to the range [0, 1] (important for `imshow` in matplotlib)
             norm_image = (image - np.min(image)) / (np.max(image) - np.min(image))
