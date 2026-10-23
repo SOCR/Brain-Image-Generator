@@ -147,7 +147,7 @@ def upload_image_to_supabase(image_data, filename, user_id, project_id, folder_n
         
         return local_path
 
-def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_name, bucket_name="volumes", model_name=None, parameters=None, is_playground=False):
+def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_name, bucket_name="volumes", model_name=None, parameters=None, is_playground=False, affine=None):
     """
     Upload a NIFTI file to Supabase Storage and record it in the database
     
@@ -163,7 +163,8 @@ def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_n
         temp_file = os.path.join(os.getcwd(), "temp_nifti.nii.gz")
         
         # Save the NIFTI data to the temporary file
-        affine = np.eye(4)
+        # The caller knows the volume's orientation (3D GANs: L,P,S after orient3d); identity otherwise.
+        affine = np.eye(4) if affine is None else affine
         nii_img = nib.Nifti1Image(nifti_data, affine=affine)
         nib.save(nii_img, temp_file)
         
@@ -210,7 +211,6 @@ def upload_nifti_to_supabase(nifti_data, filename, user_id, project_id, folder_n
         local_path = os.path.join(local_dir, filename)
         
         # Save the NIFTI file locally
-        affine = np.eye(4)
         nii_img = nib.Nifti1Image(nifti_data, affine=affine)
         nib.save(nii_img, local_path)
         

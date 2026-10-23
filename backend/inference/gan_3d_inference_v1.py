@@ -7,9 +7,18 @@ import io
 import uuid
 import os
 import nibabel as nib
+from inference import orient3d
 
 
 def save_images(generated_image, save_path, resolution, user_id=None, project_id=None, model_name=None, params=None, is_playground=False):
+    # Fit the volume to an atlas so its anatomical directions are known (see orient3d.py: the GAN's
+    # AP/SI directions are random per sample), then save it with the BraTS L,P,S affine instead of
+    # the identity. Volumes whose fit is unreliable get "_orientation-uncertain" in the file name so
+    # the web viewer can say so.
+    generated_image, orientation = orient3d.canonicalize(generated_image)
+    if params is not None:
+        params["orientation"] = orientation
+    filename = 'mri3D_orientation-uncertain.nii.gz' if orientation["low_confidence"] else 'mri3D.nii.gz'
     unique_id = uuid.uuid4().hex
     if(resolution == "32"):
       folder_name = f"{'mri32'}_{unique_id}"
@@ -21,13 +30,11 @@ def save_images(generated_image, save_path, resolution, user_id=None, project_id
         # Import here to avoid circular imports
         from supabase_storage import upload_nifti_to_supabase
         
-        # Create filename
-        filename = 'mri3D.nii.gz'
-        
         # Upload to Supabase and get the URL
         url = upload_nifti_to_supabase(
             nifti_data=generated_image,
             filename=filename,
+            affine=orient3d.LPS_AFFINE,
             user_id=user_id,
             project_id=project_id,
             folder_name=folder_name,
@@ -42,11 +49,8 @@ def save_images(generated_image, save_path, resolution, user_id=None, project_id
         folder_path = os.path.join(save_path, folder_name)
         os.makedirs(folder_path, exist_ok=True)
         
-        image_path = os.path.join(folder_path, 'mri3D.nii.gz')
-        
-        # Generate a random UUID and convert it to a hexadecimal string
-        affine = np.eye(4)
-        new_img = nib.Nifti1Image(generated_image, affine=affine)
+        image_path = os.path.join(folder_path, filename)
+        new_img = nib.Nifti1Image(generated_image, affine=orient3d.LPS_AFFINE)
         nib.save(new_img, image_path)
         
         # Return the folder name

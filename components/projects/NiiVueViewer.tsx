@@ -647,6 +647,20 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
         </div>
       )}
 
+      {/* The backend fits every generated 3D volume to an atlas to fix its anatomical direction
+          (backend/inference/orient3d.py) and marks the file name when that fit was unreliable. */}
+      {niftiUrl?.includes('_orientation-uncertain') && (
+        <div className="px-4 py-1.5 text-xs text-amber-800 bg-amber-50 dark:text-amber-200 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900">
+          Orientation uncertain: this generated brain could not be confidently matched to the atlas, so its
+          anterior/posterior and superior/inferior labels may be swapped.
+        </div>
+      )}
+      {(niftiUrl?.includes('/volumes/') || niftiUrl?.includes('mri3D')) && (
+        <div className="px-4 py-1 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+          Generated volume: front/back and top/bottom are fitted to an atlas; left/right cannot be determined and follows the BraTS convention.
+        </div>
+      )}
+
       {/* Canvas container */}
       <div className={cn("relative flex-grow w-full min-h-0", isLoading ? "opacity-50" : "opacity-100")}>
         <canvas

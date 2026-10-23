@@ -40,6 +40,7 @@ FILES = {
     "image_generation.py": os.path.join(BACKEND, "image_generation.py"),
     "supabase_storage.py": os.path.join(BACKEND, "supabase_storage.py"),
     "inference/min_max_values.csv": os.path.join(BACKEND, "inference", "min_max_values.csv"),
+    "inference/atlas_brainmask_mni2009_40.npy": os.path.join(BACKEND, "inference", "atlas_brainmask_mni2009_40.npy"),
     **{f"inference/{os.path.basename(p)}": p
        for p in glob.glob(os.path.join(BACKEND, "inference", "*.py"))},
 }
