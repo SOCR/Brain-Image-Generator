@@ -119,12 +119,19 @@ export default function ParameterControlPanel({
   ]
 
   const models3D = [
-    // WaveDiT 128^3, age-conditioned wavelet flow matching. The `id` is sent to the backend
-    // VERBATIM as `model_name`, so it must match image_generation.py's `elif` byte-for-byte,
-    // including the space before '(3D)'.
-    { id: 'braingen_WaveDiT_v1 (3D)', name: 'WaveDiT 128³' },
+    // WaveDiT, age-conditioned wavelet flow matching. The `id` is sent to the backend VERBATIM as
+    // `model_name`, so it must match image_generation.py's `elif` byte-for-byte, including the
+    // space before '(3D)'. The label carries no resolution: output size is its own control below,
+    // the same way the GAN 3D model does it.
+    { id: 'braingen_WaveDiT_v1 (3D)', name: 'WaveDiT' },
     { id: 'braingen_gan3d_BraTS_64_v1 (3D)', name: 'GAN 3D BraTS 64 v1' },
   ]
+
+  // Output resolutions WaveDiT offers. Only the native 128^3 checkpoint is deployed, so this is a
+  // one-item list rather than an arbitrary choice -- but it is a real control, because the value
+  // is sent to the backend and recorded with the image, and because a one-item list reads as
+  // "this is the model's output size" instead of leaving the user to guess.
+  const WAVEDIT_RESOLUTIONS = ['128']
 
   // Per-model ceiling on "Number of Images". The GANs are a single forward pass each, so five
   // is cheap. The conditional diffusion model runs a full DDIM sampling loop on the CPU and the
@@ -431,10 +438,27 @@ export default function ParameterControlPanel({
 
     if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
       // WaveDiT's own axes: age conditions the volume, steps is the ODE integration count and
-      // seed makes a sample reproducible. There is deliberately NO resolution control: the
-      // checkpoint is native 128^3 and the backend ignores a resolution it is sent.
+      // seed makes a sample reproducible.
       return (
         <div className="space-y-4 mt-4">
+          {/* Resolution */}
+          <div>
+            <Label htmlFor="wavedit-resolution-select">Resolution</Label>
+            <Select value={resolution} onValueChange={setResolution}>
+              <SelectTrigger id="wavedit-resolution-select" className="bg-white dark:bg-gray-800 mt-1">
+                <SelectValue placeholder="Select resolution" />
+              </SelectTrigger>
+              <SelectContent>
+                {WAVEDIT_RESOLUTIONS.map(r => (
+                  <SelectItem key={r} value={r}>{r}³</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Native output size of the deployed checkpoint.
+            </p>
+          </div>
+
           <div>
             <Label htmlFor="age-input">Patient Age</Label>
             <Input

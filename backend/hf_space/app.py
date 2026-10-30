@@ -242,23 +242,26 @@ _generate_volume_cpu = wavedit_inf.generate_volume     # captured before the reb
 
 
 @spaces.GPU(duration=WAVEDIT_GPU_DURATION)
-def _wavedit_on_gpu(age, steps, seed):
+def _wavedit_on_gpu(age, steps, seed, resolution=None):
     """Run WaveDiT's sampling loop inside a ZeroGPU worker. Same arguments, same return value.
 
-    Returns (float32 numpy array of shape (128, 128, 128) in [0, 1], provenance dict). Both are
-    plain picklable CPU objects, which is what the process boundary requires.
+    Returns (float32 numpy array in [0, 1], provenance dict). Both are plain picklable CPU objects,
+    which is what the process boundary requires.
     """
     if not WAVEDIT_READY:
         raise gr.Error(WAVEDIT_REASON)
+    kwargs = {"age": age, "steps": steps, "seed": seed}
+    if resolution is not None:
+        kwargs["resolution"] = resolution
     try:
-        return _generate_volume_cpu(age=age, steps=steps, seed=seed)
+        return _generate_volume_cpu(**kwargs)
     except Exception as e:
         raise gr.Error(f"{type(e).__name__}: {e}") from e
 
 
-def _wavedit_generate_volume(age=50.0, steps=10, seed=42):
+def _wavedit_generate_volume(age=50.0, steps=10, seed=42, resolution=None):
     try:
-        return _wavedit_on_gpu(age, steps, seed)
+        return _wavedit_on_gpu(age, steps, seed, resolution)
     except Exception as e:
         _last_error.message = getattr(e, "message", None) or str(e)
         raise
@@ -321,16 +324,19 @@ def preview(tumour, lobe, slice_location, tumour_size, seed):
             cdiff._json_safe({"seed": seed, **provenance}))
 
 
-def wavedit_preview(age, steps, seed):
+def wavedit_preview(age, steps, seed, resolution=None):
     """The Space page's WaveDiT test form: one volume through the SAME GPU path, published nowhere.
 
     Prints one mid-axial slice so the run can be eyeballed, and returns the provenance (including
-    the step count and seed) so a deployment can be checked before the website is pointed at it.
+    the resolution, step count and seed) so a deployment can be checked before the website is
+    pointed at it.
     """
     if not WAVEDIT_READY:
         raise gr.Error(WAVEDIT_REASON)
     seed = None if seed is None else int(seed)
-    volume, provenance = _wavedit_on_gpu(float(age if age is not None else 50), int(steps or 10), seed)
+    volume, provenance = _wavedit_on_gpu(
+        float(age if age is not None else 50), int(steps or 10), seed, resolution
+    )
     slice_index = volume.shape[2] // 2
     return (volume[:, :, slice_index], {"seed": seed, **provenance})
 
@@ -360,11 +366,13 @@ with gr.Blocks(title="SOCR Brain Image Generator backend") as demo:
         with gr.Row():
             wd_age = gr.Number(value=50, precision=0, label="Patient age (6-95)")
             wd_steps = gr.Slider(1, 50, value=10, step=1, label="Sampling steps")
+            wd_res = gr.Dropdown(list(wavedit_inf.RESOLUTIONS), value=wavedit_inf.DEFAULT_RESOLUTION,
+                                 label="Resolution")
             wd_seed = gr.Number(value=None, precision=0, label="Seed (blank = random)")
         wd_run = gr.Button("Generate one volume", variant="primary")
-        wd_out = gr.Image(label="Mid-axial slice of the generated 128^3 volume")
+        wd_out = gr.Image(label="Mid-axial slice of the generated volume")
         wd_record = gr.JSON(label="What happened")
-        wd_run.click(wavedit_preview, [wd_age, wd_steps, wd_seed], [wd_out, wd_record])
+        wd_run.click(wavedit_preview, [wd_age, wd_steps, wd_seed, wd_res], [wd_out, wd_record])
 
     # The website's two calls: API-only endpoints, no UI components.
     gr.api(generate, api_name="generate")

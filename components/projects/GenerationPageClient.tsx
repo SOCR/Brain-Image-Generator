@@ -91,6 +91,19 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
     setSelectedModel('')
   }, [dimensionType])
 
+  // Keep the shared resolution value valid for the newly selected 3D model. `resolution` is one
+  // piece of state shared by both 3D models, and their option sets do not overlap at all
+  // (GAN 3D: 32/64; WaveDiT: 128), so a value carried over from the other model would be sent as
+  // a resolution that model cannot produce. This mirrors the GAN branch that already existed.
+  useEffect(() => {
+    if (selectedModel === 'braingen_gan3d_BraTS_64_v1 (3D)') {
+      setResolution(prev => (prev === '32' || prev === '64' ? prev : '64'))
+    }
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
+      setResolution(prev => (prev === '128' ? prev : '128'))
+    }
+  }, [selectedModel])
+
   // The conditional diffusion model runs a real DDIM sampling loop on the CPU (~950 GFLOP per
   // step, 50 steps by default) and backend/image_generation.py loops `for i in range(n_images)`
   // SEQUENTIALLY inside one synchronous request. Asking for 5 multiplies an already
@@ -305,9 +318,9 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
     }
 
     if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
-      // Keys match image_generation.py's params.get() lookups for this branch. No resolution:
-      // the checkpoint is native 128^3 and the backend ignores it.
-      return { age, steps, seed }
+      // Keys match image_generation.py's params.get() lookups for this branch. `resolution` is the
+      // model's own control (native 128^3), so it is sent and recorded with the image.
+      return { age, steps, seed, resolution }
     }
 
     return {}

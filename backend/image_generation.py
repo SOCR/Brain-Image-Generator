@@ -140,12 +140,14 @@ def generate_image(user_id, project_id, model_name, n_images, params, is_playgro
                     age = params.get("age", 50.0)      # years, clamped to 6..95 by the module
                     steps = params.get("steps", wavedit_inf.DEFAULT_STEPS)  # ODE steps, 1..50
                     seed = params.get("seed", 42 + i)
+                    resolution = params.get("resolution", wavedit_inf.DEFAULT_RESOLUTION)  # "128"
 
                     image_path = wavedit_inf.inference(
                         model_name=model_name,
                         age=age,
                         steps=steps,
                         seed=seed,
+                        resolution=resolution,
                         save_path=save_path,
                         user_id=user_id,
                         project_id=project_id,

@@ -1059,12 +1059,16 @@ def check_wavedit(res):
 
     t0 = time.perf_counter()
     try:
-        vol, provenance = wavedit_inf.generate_volume(age=50.0, steps=1, seed=SEED)
+        vol, provenance = wavedit_inf.generate_volume(
+            age=50.0, steps=1, seed=SEED, resolution=wavedit_inf.DEFAULT_RESOLUTION
+        )
     except Exception as e:
         res.fail("sampling raised", f"{type(e).__name__}: {e}\n" + traceback.format_exc(limit=3))
         return
     seconds = time.perf_counter() - t0
 
+    res.say(f"{'resolutions':<12}: {list(wavedit_inf.RESOLUTIONS)} "
+            f"(default {wavedit_inf.DEFAULT_RESOLUTION})")
     res.say(f"{'provenance':<12}: {provenance}")
     if report_stats(res, vol, seconds, what="volume"):
         res.status, res.verdict = PASS, "loaded + generated (1 step)"

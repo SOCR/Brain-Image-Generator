@@ -35,10 +35,18 @@ import uuid
 import numpy as np
 import nibabel as nib
 
-# The one checkpoint this model serves. WaveDiT-128 is native 128^3; the UI offers no other
-# resolution, so there is no crop/upsample step and no per-resolution cache key.
+# The 128^3 checkpoint this module serves by default. The name is also the RESOLUTIONS key below,
+# which is what actually selects it.
 CKPT_FILENAME = "WaveDiT-128.pth"
-OUTPUT_SHAPE = (128, 128, 128)
+
+# Output resolutions this deployment can serve, keyed by the string the UI sends. Each entry is
+# (checkpoint, native volume size). Only the native 128^3 checkpoint ships today, so there is one
+# entry -- but the resolution the UI sends IS honoured here, so adding a second checkpoint later is
+# a one-line change here plus a dropdown item in ParameterControlPanel.tsx, not a new code path.
+RESOLUTIONS = {
+    "128": (CKPT_FILENAME, (128, 128, 128)),
+}
+DEFAULT_RESOLUTION = "128"
 
 # The UI's sliders. MIN_STEPS=1 is a legitimate setting (a single Euler step), not a mistake.
 MIN_STEPS, MAX_STEPS = 1, 50
@@ -75,11 +83,15 @@ MIN_AGE, MAX_AGE = 6.0, 95.0
 os.environ.setdefault("K_DIFFUSION_USE_COMPILE", "0")
 
 # Loaded once per process. A checkpoint this size is not re-read per request.
-_cached = {}  # keys: "model", "config", "device"
+# Keyed by RESOLUTIONS key ("128"), so adding a second checkpoint later caches independently
+# instead of silently serving the first model loaded.
+_cached = {}
 
 
-def _checkpoint_path() -> str:
-    return os.path.join(os.getcwd(), "inference", "model", CKPT_FILENAME)
+def _checkpoint_path(resolution=DEFAULT_RESOLUTION) -> str:
+    """Path to the checkpoint that serves ``resolution`` (falling back to the default)."""
+    ckpt_filename = RESOLUTIONS.get(str(resolution), RESOLUTIONS[DEFAULT_RESOLUTION])[0]
+    return os.path.join(os.getcwd(), "inference", "model", ckpt_filename)
 
 
 def _resolve_device():
@@ -95,8 +107,9 @@ def _resolve_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def load_wavedit_model(device=None):
-    """Build WaveDiT-128, load its weights, move it to ``device`` and cache it.
+def load_wavedit_model(device=None, resolution=DEFAULT_RESOLUTION):
+    """Build the WaveDiT model that serves ``resolution``, load its weights, move it to ``device``
+    and cache it.
 
     Returns ``(model, cfg)``. ``device`` defaults to :func:`_resolve_device`.
 
@@ -116,7 +129,8 @@ def load_wavedit_model(device=None):
 
     import torch
 
-    ckpt_path = _checkpoint_path()
+    key = str(resolution) if str(resolution) in RESOLUTIONS else DEFAULT_RESOLUTION
+    ckpt_path = _checkpoint_path(key)
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"WaveDiT checkpoint not found at: {ckpt_path}")
 
@@ -148,16 +162,17 @@ def load_wavedit_model(device=None):
     model.to(device)
     model.eval()
 
-    _cached["model"], _cached["config"], _cached["device"] = model, cfg, device
-    print(f"[WaveDiT] Model loaded and cached ({CKPT_FILENAME}).")
+    _cached[key] = {"model": model, "config": cfg, "device": device}
+    print(f"[WaveDiT] Model loaded and cached ({os.path.basename(ckpt_path)}, key='{key}').")
     return model, cfg
 
 
-def get_wavedit_model():
-    """Return the cached model, loading it on the resolved device on first use."""
-    if "model" in _cached:
-        return _cached["model"], _cached["config"]
-    return load_wavedit_model()
+def get_wavedit_model(resolution=DEFAULT_RESOLUTION):
+    """Return the cached model for ``resolution``, loading it on first use."""
+    key = str(resolution) if str(resolution) in RESOLUTIONS else DEFAULT_RESOLUTION
+    if key in _cached:
+        return _cached[key]["model"], _cached[key]["config"]
+    return load_wavedit_model(resolution=key)
 
 
 def save_wavedit_volume(
@@ -199,14 +214,20 @@ def save_wavedit_volume(
     return folder_path
 
 
-def generate_volume(age=50.0, steps=DEFAULT_STEPS, seed=42):
-    """Sample one volume. Returns ``(volume float32 128^3 in [0, 1], params dict)``.
+def generate_volume(age=50.0, steps=DEFAULT_STEPS, seed=42, resolution=DEFAULT_RESOLUTION):
+    """Sample one volume. Returns ``(volume float32, params dict)`` in [0, 1].
 
     Split out from :func:`inference` so a host can run ONLY this part on a GPU and do the upload
     elsewhere: the volume and the params are plain picklable Python objects, which is exactly what
     the HF Space needs to cross its ZeroGPU process boundary (see hf_space/app.py).
+
+    ``resolution`` selects the checkpoint AND the output size (see RESOLUTIONS). An unrecognised
+    value falls back to the default rather than raising, because it arrives from the UI.
     """
     import torch
+
+    key = str(resolution) if str(resolution) in RESOLUTIONS else DEFAULT_RESOLUTION
+    out_shape = RESOLUTIONS[key][1]
 
     try:
         steps = int(steps)
@@ -224,11 +245,11 @@ def generate_volume(age=50.0, steps=DEFAULT_STEPS, seed=42):
     if seed is not None:
         torch.manual_seed(seed)
 
-    model, _cfg = get_wavedit_model()
+    model, _cfg = get_wavedit_model(key)
     model.num_flow_steps_sampling = steps
 
-    print(f"[WaveDiT] age={age} steps={steps} seed={seed} "
-          f"sampler={FIXED_SAMPLER} cfg_scale={FIXED_CFG_SCALE} out={OUTPUT_SHAPE}")
+    print(f"[WaveDiT] age={age} steps={steps} seed={seed} resolution={key} out={out_shape} "
+          f"sampler={FIXED_SAMPLER} cfg_scale={FIXED_CFG_SCALE}")
     t0 = time.time()
     with torch.no_grad():
         vol = model.sample(
@@ -251,7 +272,7 @@ def generate_volume(age=50.0, steps=DEFAULT_STEPS, seed=42):
         "seed": seed,
         "sampler": FIXED_SAMPLER,
         "cfg_scale": FIXED_CFG_SCALE,
-        "resolution": str(OUTPUT_SHAPE[0]),
+        "resolution": key,
     }
     return volume, params
 
@@ -271,6 +292,7 @@ def inference(
     age=50.0,
     steps=DEFAULT_STEPS,
     seed=42,
+    resolution=DEFAULT_RESOLUTION,
     save_path=None,
     user_id=None,
     project_id=None,
@@ -279,18 +301,21 @@ def inference(
     params=None,
     **kwargs,
 ):
-    """Generate one 128^3 volume conditioned on ``age`` and publish it.
+    """Generate one volume conditioned on ``age`` and publish it.
 
-    ``kwargs`` swallows anything the API may forward (e.g. ``cfg_scale``/``sampler``/
-    ``resolution``) rather than raising: those axes are pinned in this module, and a stray key must
-    not turn a generation into a KeyError caught by image_generation.py's blanket except.
+    ``resolution`` picks the checkpoint and output size (see RESOLUTIONS); an unrecognised value
+    falls back to the default. ``kwargs`` swallows anything else the API may forward (e.g.
+    ``cfg_scale``/``sampler``) rather than raising: those axes are pinned in this module, and a
+    stray key must not turn a generation into a KeyError caught by image_generation.py's except.
 
     ``volume``/``params`` are for a caller that already ran :func:`generate_volume` on another
     device or process (the HF Space, which samples on ZeroGPU). Passing them skips sampling and
     only publishes.
     """
     if volume is None:
-        volume, generated_params = generate_volume(age=age, steps=steps, seed=seed)
+        volume, generated_params = generate_volume(
+            age=age, steps=steps, seed=seed, resolution=resolution
+        )
         if params is None:
             params = generated_params
 
