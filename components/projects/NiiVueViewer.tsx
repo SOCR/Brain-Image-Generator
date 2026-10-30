@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Separator } from '@/components/ui/separator'
+import { Button } from '@/components/ui/button'
 import {
   Box,
   Layers,
@@ -19,6 +20,7 @@ import {
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { flipVoxels } from '@/lib/flipVolume'
 
 /**
  * Volume viewer modelled on the SOCR Brain Viewer (socr.umich.edu/HTML5/BrainViewer, built on
@@ -56,6 +58,15 @@ const SLICE_AXES = [
   { axis: 1, label: 'Coronal' },
   { axis: 0, label: 'Sagittal' },
 ] as const
+
+// Anatomical directions a user can flip on a generated volume. `ras` indexes NiiVue's permRAS,
+// which says which voxel axis runs right-left (0), anterior-posterior (1), superior-inferior (2).
+const FLIP_AXES = [
+  { ras: 0, code: 'LR', label: 'Left / right' },
+  { ras: 1, code: 'AP', label: 'Front / back' },
+  { ras: 2, code: 'SI', label: 'Top / bottom' },
+] as const
+const NO_FLIPS = [false, false, false]
 
 /** NiiVue loads by URL; a local File becomes a blob: URL, and `name` carries the extension it sniffs. */
 function toSource(url?: string | null, file?: File | null) {
@@ -96,6 +107,10 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
   const [hasOverlay, setHasOverlay] = useState(false)
   const [overlayOpacity, setOverlayOpacity] = useState(0.6)
   const [showOverlay, setShowOverlay] = useState(true)
+  // Which FLIP_AXES are currently applied to the loaded voxels (reset by every load).
+  const [flips, setFlips] = useState<boolean[]>(NO_FLIPS)
+  // Generated volumes saved before the atlas fit have an exact identity affine.
+  const [isUnfitted, setIsUnfitted] = useState(false)
   // The toolbar stays usable while a volume loads, but the settings effects below skip while
   // nv.volumes is empty. The load reads the LATEST settings from here after it finishes, so a
   // view/colour/opacity/clip change made mid-load is not lost.
@@ -175,6 +190,7 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
 
       setIsLoading(true)
       setError(null)
+      setFlips(NO_FLIPS)
 
       try {
         // loadVolumes empties nv.volumes, but NiiVue 0.52 also keeps every loaded image in
@@ -199,6 +215,7 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
           setContrastMin(cal_min)
           setContrastMax(cal_max)
           if (volume.dims) setDims([volume.dims[1], volume.dims[2], volume.dims[3]])
+          setIsUnfitted(!!volume.hdr?.affine.every((row, i) => row.every((v, j) => v === (i === j ? 1 : 0))))
         }
         setHasOverlay(nv.volumes.length > 1)
         // Apply whatever the toolbar says NOW (it may have changed during the download).
@@ -334,6 +351,43 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
     nv.createOnLocationChange()
   }
 
+  // Mirror the anatomy along one direction. The voxels change, not the header, so the viewer's
+  // L/R, A/P and S/I labels stay put and any program reading the saved array sees the same brain.
+  // ponytail: no flipping with a label map loaded -- NiiVue places an overlay by its own grid, so
+  // mirroring both only stays aligned on an identical grid. Add when someone needs it.
+  const toggleFlip = (ras: number) => {
+    const nv = niivueRef.current
+    const vol = nv?.volumes[0]
+    if (!nv || !vol?.img || !vol.hdr || !vol.permRAS) return
+    flipVoxels(vol.img, vol.hdr.dims.slice(1, 4), Math.abs(vol.permRAS[ras]) - 1)
+    nv.updateGLVolume()
+    nv.createOnLocationChange() // the footer's intensity at the crosshair has changed
+    setFlips(current => current.map((on, i) => (i === ras ? !on : on)))
+  }
+
+  // NiiVue writes out the voxels it holds, so this file has the flips applied. The page's own
+  // Download menu serves the stored original, which is why this button lives here.
+  const downloadFlipped = () => {
+    const vol = niivueRef.current?.volumes[0]
+    if (!vol) return
+    const applied = FLIP_AXES.filter(({ ras }) => flips[ras]).map(({ code }) => code).join('-')
+    // Any "_orientation-uncertain" tag stays: a hand flip does not make the atlas fit reliable.
+    // saveToDisk always writes NIfTI, so the extension becomes .nii.gz whatever was opened.
+    vol.saveToDisk(vol.name.replace(/\.(nii(\.gz)?|mgz|mgh|nrrd)$/i, `_flipped-${applied}.nii.gz`))
+  }
+
+  // file wins over niftiUrl in toSource, so the same order decides which name describes the volume.
+  const sourceName = file?.name ?? niftiUrl ?? ''
+  const isGeneratedVolume = sourceName.includes('/volumes/') || sourceName.includes('mri3D')
+  // Why this volume's front/back and top/bottom cannot be trusted, if they cannot.
+  const unconfirmedReason = /_flipped-[A-Z-]*(AP|SI)/.test(sourceName)
+    ? 'this copy was flipped by hand'
+    : sourceName.includes('_orientation-uncertain')
+      ? 'this brain could not be confidently matched to the atlas'
+      : isUnfitted
+        ? 'this brain was generated before atlas fitting was added'
+        : null
+  const anyFlipped = flips.some(Boolean)
 
   // Icon button component for toolbar
   const IconButton = ({
@@ -648,16 +702,61 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
       )}
 
       {/* The backend fits every generated 3D volume to an atlas to fix its anatomical direction
-          (backend/inference/orient3d.py) and marks the file name when that fit was unreliable. */}
-      {niftiUrl?.includes('_orientation-uncertain') && (
-        <div className="px-4 py-1.5 text-xs text-amber-800 bg-amber-50 dark:text-amber-200 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-900">
-          Orientation uncertain: this generated brain could not be confidently matched to the atlas, so its
-          anterior/posterior and superior/inferior labels may be swapped.
-        </div>
-      )}
-      {(niftiUrl?.includes('/volumes/') || niftiUrl?.includes('mri3D')) && (
-        <div className="px-4 py-1 text-[11px] text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-          Generated volume: front/back and top/bottom are fitted to an atlas; left/right cannot be determined and follows the BraTS convention.
+          (backend/inference/orient3d.py) and marks the file name when that fit was unreliable.
+          Left/right can never be fitted, so every generated volume gets the manual flips. */}
+      {isGeneratedVolume && !error && (
+        <div className={cn(
+          "px-4 py-1.5 text-xs border-b space-y-1",
+          unconfirmedReason
+            ? "text-amber-800 bg-amber-50 dark:text-amber-200 dark:bg-amber-950 border-amber-200 dark:border-amber-900"
+            : "text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800"
+        )}>
+          <p>
+            {unconfirmedReason
+              ? <>
+                  <span className="font-medium">Orientation not confirmed:</span>{' '}
+                  {unconfirmedReason}, so front/back and top/bottom may be reversed. In the sagittal
+                  panel (P at left, S at top) the cerebellum belongs at the lower left. Left/right
+                  cannot be determined.
+                </>
+              : 'Generated volume: front/back and top/bottom are fitted to an atlas. Left/right cannot be determined and follows the BraTS convention, so flip it if you need the other side.'}
+          </p>
+          {hasOverlay ? (
+            <p>Flipping is off while a label map is loaded, because it might not stay aligned. Remove the label map to flip.</p>
+          ) : (
+          <div role="group" aria-label="Flip orientation" className="flex flex-wrap items-center gap-1.5">
+            <span className="font-medium mr-1">Flip</span>
+            {FLIP_AXES.map(({ ras, label }) => (
+              <Button
+                key={ras}
+                size="sm"
+                variant={flips[ras] ? 'default' : 'outline'}
+                className="h-6 px-2 text-xs"
+                aria-pressed={flips[ras]}
+                disabled={isLoading}
+                onClick={() => toggleFlip(ras)}
+              >
+                {label}
+              </Button>
+            ))}
+            {anyFlipped && (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-xs"
+                  onClick={() => FLIP_AXES.forEach(({ ras }) => { if (flips[ras]) toggleFlip(ras) })}
+                >
+                  Reset
+                </Button>
+                <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={downloadFlipped}>
+                  Download flipped copy
+                </Button>
+                <span>Flips change this view, not the stored file. Only this button saves them; any other download gives the original.</span>
+              </>
+            )}
+          </div>
+          )}
         </div>
       )}
 
