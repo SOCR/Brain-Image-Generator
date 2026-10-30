@@ -38,6 +38,13 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   const [sliceLocation, setSliceLocation] = useState<string>('Middle')
   const [resolution, setResolution] = useState<string>('64')
 
+  // WaveDiT parameters (braingen_WaveDiT_v1 (3D)): age conditions the volume, steps is the ODE
+  // integration count, seed makes a sample reproducible. Kept in the parent like every other
+  // parameter, so the panel stays fully controlled.
+  const [age, setAge] = useState<number>(50)
+  const [steps, setSteps] = useState<number>(10)
+  const [seed, setSeed] = useState<number>(42)
+
   // Conditional-diffusion parameters (braingen_CondDiffuser_BraTS_v1).
   // All parameter state lives here in the parent; ParameterControlPanel is fully
   // controlled and holds none of its own. Defaults MUST be non-empty valid strings:
@@ -92,6 +99,15 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   // continues to report the truth.
   useEffect(() => {
     if (selectedModel === 'braingen_CondDiffuser_BraTS_v1 (2D)') {
+      setNumImages(1)
+    }
+  }, [selectedModel])
+
+  // WaveDiT is capped to one image per request for the same reason: the backend clamps to
+  // wavedit_inference.MAX_IMAGES (1) and each sample is a full ODE loop over a 1.7 GB model, so a
+  // count carried over from a GAN would make the UI promise images that never arrive.
+  useEffect(() => {
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
       setNumImages(1)
     }
   }, [selectedModel])
@@ -288,6 +304,12 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
       return { resolution }
     }
 
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
+      // Keys match image_generation.py's params.get() lookups for this branch. No resolution:
+      // the checkpoint is native 128^3 and the backend ignores it.
+      return { age, steps, seed }
+    }
+
     return {}
   }
 
@@ -390,6 +412,14 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         setLobe={setLobe}
         tumourSize={tumourSize}
         setTumourSize={setTumourSize}
+        // WaveDiT parameters -- required props, so these are threaded here alongside the
+        // interface addition in ParameterControlPanel.
+        age={age}
+        setAge={setAge}
+        steps={steps}
+        setSteps={setSteps}
+        seed={seed}
+        setSeed={setSeed}
         // Optional: `null` until the capability fetch settles, which the panel reads as
         // "leave everything enabled" so a slow backend does not lock the controls.
         conddiffCells={conddiffCells}
