@@ -21,6 +21,9 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { flipVoxels } from '@/lib/flipVolume'
+import { saveFlippedVolume } from '@/lib/download'
+import { createClient } from '@/utils/supabase/client'
+import { toast } from '@/hooks/use-toast'
 
 /**
  * Volume viewer modelled on the SOCR Brain Viewer (socr.umich.edu/HTML5/BrainViewer, built on
@@ -38,6 +41,9 @@ interface NiiVueViewerProps {
   overlayUrl?: string | null
   overlayFile?: File | null
   onError?: (error: Error) => void
+  // Offer "Save to Library" for flips: true where the volume is a signed-in user's stored result.
+  canSaveToLibrary?: boolean
+  onSaved?: () => void
 }
 
 // View types supported by NiiVue
@@ -75,7 +81,7 @@ function toSource(url?: string | null, file?: File | null) {
   return null
 }
 
-export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl = null, overlayFile = null, onError }: NiiVueViewerProps) {
+export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl = null, overlayFile = null, onError, canSaveToLibrary = false, onSaved }: NiiVueViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const niivueRef = useRef<Niivue | null>(null)
   // Callers pass inline arrow functions; keeping onError in a ref stops every parent re-render
@@ -109,6 +115,10 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
   const [showOverlay, setShowOverlay] = useState(true)
   // Which FLIP_AXES are currently applied to the loaded voxels (reset by every load).
   const [flips, setFlips] = useState<boolean[]>(NO_FLIPS)
+  const [isSaving, setIsSaving] = useState(false)
+  // What was last saved to the Library, so it is not offered again. It records the volume too: a
+  // save can finish after the user has moved on to another set in this same viewer.
+  const [savedFlips, setSavedFlips] = useState<{ url: string; flips: string } | null>(null)
   // Generated volumes saved before the atlas fit have an exact identity affine.
   const [isUnfitted, setIsUnfitted] = useState(false)
   // The toolbar stays usable while a volume loads, but the settings effects below skip while
@@ -191,6 +201,7 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
       setIsLoading(true)
       setError(null)
       setFlips(NO_FLIPS)
+      setSavedFlips(null)
 
       try {
         // loadVolumes empties nv.volumes, but NiiVue 0.52 also keeps every loaded image in
@@ -365,15 +376,41 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
     setFlips(current => current.map((on, i) => (i === ras ? !on : on)))
   }
 
-  // NiiVue writes out the voxels it holds, so this file has the flips applied. The page's own
-  // Download menu serves the stored original, which is why this button lives here.
+  const appliedFlips = FLIP_AXES.filter(({ ras }) => flips[ras]).map(({ code }) => code).join('-')
+  const isSaved = savedFlips?.url === niftiUrl && savedFlips?.flips === appliedFlips
+  // NiiVue writes out the voxels it holds, so both save paths below carry the flips. Any
+  // "_orientation-uncertain" tag stays: a hand flip does not make the atlas fit reliable. The
+  // output is always NIfTI, so the extension becomes .nii.gz whatever was opened.
+  const flippedName = (name: string) => name.replace(/\.(nii(\.gz)?|mgz|mgh|nrrd)$/i, `_flipped-${appliedFlips}.nii.gz`)
+
+  // The page's own Download menu serves the stored original, which is why this button lives here.
   const downloadFlipped = () => {
     const vol = niivueRef.current?.volumes[0]
-    if (!vol) return
-    const applied = FLIP_AXES.filter(({ ras }) => flips[ras]).map(({ code }) => code).join('-')
-    // Any "_orientation-uncertain" tag stays: a hand flip does not make the atlas fit reliable.
-    // saveToDisk always writes NIfTI, so the extension becomes .nii.gz whatever was opened.
-    vol.saveToDisk(vol.name.replace(/\.(nii(\.gz)?|mgz|mgh|nrrd)$/i, `_flipped-${applied}.nii.gz`))
+    if (vol) vol.saveToDisk(flippedName(vol.name))
+  }
+
+  const saveToLibrary = async () => {
+    const vol = niivueRef.current?.volumes[0]
+    if (!vol || !niftiUrl) return
+    setIsSaving(true)
+    try {
+      const name = flippedName(vol.name)
+      const added = await saveFlippedVolume(createClient(), niftiUrl, name, appliedFlips, await vol.saveToUint8Array(name))
+      setSavedFlips({ url: niftiUrl, flips: appliedFlips })
+      toast(added
+        ? { title: 'Saved to your Library', description: 'It is a new item beside the original.' }
+        : { title: 'Already in your Library', description: 'These flips were saved earlier.' })
+      if (added) onSaved?.()
+    } catch (err) {
+      console.error('Error saving flipped volume:', err)
+      toast({
+        title: 'Could not save to your Library',
+        description: (err as { message?: string })?.message ?? 'Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   // file wins over niftiUrl in toSource, so the same order decides which name describes the volume.
@@ -749,10 +786,21 @@ export default function NiiVueViewer({ niftiUrl = null, file = null, overlayUrl 
                 >
                   Reset
                 </Button>
+                {canSaveToLibrary && niftiUrl && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-6 px-2 text-xs"
+                    disabled={isSaving || isSaved}
+                    onClick={saveToLibrary}
+                  >
+                    {isSaving ? 'Saving...' : isSaved ? 'Saved to Library' : 'Save to Library'}
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" className="h-6 px-2 text-xs" onClick={downloadFlipped}>
                   Download flipped copy
                 </Button>
-                <span>Flips change this view, not the stored file. Only this button saves them; any other download gives the original.</span>
+                <span>Flips change this view only. To keep them, use these buttons; any other download gives the original.</span>
               </>
             )}
           </div>

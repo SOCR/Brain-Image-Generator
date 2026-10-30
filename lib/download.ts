@@ -9,6 +9,8 @@
  * Nothing here is gated on sign-in: playground users download exactly like everyone else.
  */
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export interface DownloadableSet {
   name: string
   createdAt: string
@@ -100,4 +102,48 @@ export async function downloadSetZip(set: DownloadableSet) {
 export function parseParams(raw: unknown): unknown {
   if (typeof raw !== 'string') return raw ?? undefined
   try { return JSON.parse(raw) } catch { return raw }
+}
+
+/**
+ * Keep a hand-flipped volume as its own Library item, beside the original. The original file and
+ * row are left alone: they are the model's unmodified output, and storage allows no overwrite.
+ * Being a normal row, the copy works with the Download menu, the zip and the Library unchanged.
+ * Returns whether a new item was added (false: these flips were already saved).
+ */
+export async function saveFlippedVolume(
+  supabase: SupabaseClient,
+  sourceUrl: string,
+  fileName: string,
+  flips: string,
+  bytes: Uint8Array,
+) {
+  const sourcePath = sourceUrl.split('?')[0].split('/object/public/volumes/')[1]
+  if (!sourcePath) throw new Error('This volume is not a stored result')
+  const { data: source, error } = await supabase
+    .from('generated_images').select('*').eq('file_path', sourceUrl).limit(1).maybeSingle()
+  if (error) throw error
+  if (!source) throw new Error('This volume is not in your Library')
+
+  const path = `${sourcePath.slice(0, sourcePath.lastIndexOf('/'))}/${fileName}`
+  const volumes = supabase.storage.from('volumes')
+  const { error: uploadError } = await volumes.upload(path, bytes, { contentType: 'application/octet-stream' })
+  // The same flips saved again produce the same file, so "already exists" is not a failure.
+  if (uploadError && !/exist|duplicate/i.test(uploadError.message)) throw uploadError
+  const fileUrl = volumes.getPublicUrl(path).data.publicUrl
+
+  const { data: existing } = await supabase
+    .from('generated_images').select('id').eq('file_path', fileUrl).limit(1).maybeSingle()
+  if (existing) return false
+
+  const { error: insertError } = await supabase.from('generated_images').insert({
+    name: `${source.name}_flipped-${flips}`,
+    project_id: source.project_id,
+    model_id: source.model_id,
+    user_id: source.user_id,
+    file_path: fileUrl,
+    // A set name, not a URL: this reaches the shareable params.json (see downloadSetZip).
+    parameters_used: { ...(parseParams(source.parameters_used) as object), flipped: flips, flipped_from: source.name },
+  })
+  if (insertError) throw insertError
+  return true
 }

@@ -35,11 +35,14 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
   const [dimensionFilter, setDimensionFilter] = useState<'all' | '2D' | '3D'>('all')
   const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest')
   const [deletingSetId, setDeletingSetId] = useState<string | null>(null)
+  // Bumped when a flipped volume is saved from the detail modal, so its card appears.
+  const [reloadKey, setReloadKey] = useState(0)
 
   // Fetch images from API
   useEffect(() => {
     const fetchImages = async () => {
-      setIsLoading(true)
+      // No spinner on a reload: the spinner replaces the page, and the open modal with it.
+      if (reloadKey === 0) setIsLoading(true)
       try {
         const response = await fetch(`/api/images/project/${projectId}`)
 
@@ -123,7 +126,7 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
     }
 
     fetchImages()
-  }, [projectId])
+  }, [projectId, reloadKey])
 
   // Apply filters and sorting
   useEffect(() => {
@@ -184,8 +187,9 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
       setImageSets(prev => prev.filter(set => set.id !== imageSet.id))
 
       toast({
-        title: "Deleted",
-        description: `"${imageSet.name}" has been deleted`,
+        // Nothing is deleted yet (see the TODO above), so the toast must not say it was.
+        title: "Hidden from this view",
+        description: `Deleting is not available yet, so "${imageSet.name}" will return when the page reloads.`,
       })
     } catch (error) {
       console.error('Error deleting image set:', error)
@@ -297,6 +301,7 @@ export default function LibraryPageClient({ projectId, userId }: LibraryPageClie
         open={selectedSet !== null}
         onClose={() => setSelectedSet(null)}
         onDownload={handleDownload}
+        onSaved={() => setReloadKey(key => key + 1)}
       />
     </div>
   )

@@ -167,7 +167,8 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
             headers: {
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ ids: generatedImageIds }),
+            // Each set arrives as its own list, and a failed sample leaves an empty or null entry.
+            body: JSON.stringify({ ids: generatedImageIds.flat().filter(Boolean) }),
           })
 
           if (response.ok) {
@@ -233,11 +234,17 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
               setSelectedImageType(firstAvailableType)
             }
           } else {
-            console.error('Failed to fetch images')
+            throw new Error('Failed to fetch images')
           }
         }
       } catch (error) {
         console.error('Error fetching image details:', error)
+        // Replaces the "Success" toast, which fires as soon as the backend answers.
+        toast({
+          title: "Error",
+          description: "Generation finished, but the images could not be loaded.",
+          variant: "destructive"
+        })
       }
     }
 
@@ -345,7 +352,7 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         Array.isArray(entry) ? entry.some(Boolean) : Boolean(entry)
       )
       if (produced.length === 0) {
-        throw new Error('The backend returned no images. Check the backend logs for the cause.')
+        throw new Error('No images were produced. Please try again.')
       }
 
       setGenerationMeta({ model: requestBody.model_name, params: requestBody.params })
@@ -405,6 +412,7 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         setSelectedSetIndex={setSelectedSetIndex}
         selectedImageType={selectedImageType}
         setSelectedImageType={setSelectedImageType}
+        isPlayground={isPlayground}
       />
     </div>
   )

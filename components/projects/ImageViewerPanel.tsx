@@ -14,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { toast } from '@/hooks/use-toast'
 import {
   Loader2,
   ImageIcon,
@@ -67,6 +66,7 @@ interface ImageViewerPanelProps {
   setSelectedSetIndex: (index: number) => void
   selectedImageType: ImageType
   setSelectedImageType: (type: ImageType) => void
+  isPlayground?: boolean
 }
 
 export default function ImageViewerPanel({
@@ -78,6 +78,7 @@ export default function ImageViewerPanel({
   setSelectedSetIndex,
   selectedImageType,
   setSelectedImageType,
+  isPlayground = false,
 }: ImageViewerPanelProps) {
   const [viewMode, setViewMode] = useState<'single' | 'grid'>('single')
   // Shared settings for both single and grid view (synced)
@@ -549,14 +550,7 @@ export default function ImageViewerPanel({
         <div className="flex-1 w-full">
           <NiiVueViewer
             niftiUrl={niftiUrl}
-            onError={(error) => {
-              console.error("NiiVue error:", error)
-              toast({
-                title: "Error",
-                description: "Failed to load 3D volume",
-                variant: "destructive"
-              })
-            }}
+            canSaveToLibrary={!isPlayground}
           />
         </div>
       </>

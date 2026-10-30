@@ -48,6 +48,9 @@ export default function ImageSetCard({
   isDeleting = false
 }: ImageSetCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  // From the name, not params.flipped: only the name keeps every step of a copy of a copy, and
+  // the long hex id means the title is usually cut off before the suffix.
+  const flips = imageSet.name.split('_flipped-').slice(1).join(' + ')
 
   return (
     <div
@@ -102,7 +105,12 @@ export default function ImageSetCard({
           )}
 
           {/* Dimension Badge */}
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 right-2 flex gap-1">
+            {flips && (
+              <span className="px-2 py-1 text-xs font-medium bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-md border border-gray-200 dark:border-gray-700">
+                Flipped {flips}
+              </span>
+            )}
             <span className="px-2 py-1 text-xs font-medium bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-md border border-gray-200 dark:border-gray-700">
               {imageSet.dimensionType}
             </span>
