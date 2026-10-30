@@ -41,3 +41,17 @@ PyWavelets==1.8.0
 pandas==2.3.3
 Pillow==10.0.0
 python-dotenv==1.0.0
+
+# --- braingen_WaveDiT_v1 (3D): the three imports the vendored backend/wavedit/ package needs ----
+# The package itself ships in the Space repo (push_space.py uploads wavedit/**/*.py), so nothing
+# installs it. These are the third-party modules it imports on the SAMPLING path:
+#   einops  -- the HDiT transformer rearranges tensors with it on every forward pass;
+#   PyYAML  -- wavedit/config.py imports it at module scope, so `from wavedit import Config`
+#              fails without it;
+#   tqdm    -- wraps the ODE loop for its per-step progress bar.
+# natten and flash-attn are deliberately NOT listed: backend/wavedit/models/hdit/ imports both
+# inside try/except and falls back to a pure-torch attention path. Both need to compile against
+# the exact torch, which would put the whole Space build at risk for a speedup only CUDA gets.
+einops==0.8.1
+PyYAML==6.0.2
+tqdm==4.67.1

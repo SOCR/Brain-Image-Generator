@@ -38,6 +38,13 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   const [sliceLocation, setSliceLocation] = useState<string>('Middle')
   const [resolution, setResolution] = useState<string>('64')
 
+  // WaveDiT parameters (braingen_WaveDiT_v1 (3D)): age conditions the volume, steps is the ODE
+  // integration count, seed makes a sample reproducible. Kept in the parent like every other
+  // parameter, so the panel stays fully controlled.
+  const [age, setAge] = useState<number>(50)
+  const [steps, setSteps] = useState<number>(10)
+  const [seed, setSeed] = useState<number>(42)
+
   // Conditional-diffusion parameters (braingen_CondDiffuser_BraTS_v1).
   // All parameter state lives here in the parent; ParameterControlPanel is fully
   // controlled and holds none of its own. Defaults MUST be non-empty valid strings:
@@ -84,6 +91,19 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
     setSelectedModel('')
   }, [dimensionType])
 
+  // Keep the shared resolution value valid for the newly selected 3D model. `resolution` is one
+  // piece of state shared by both 3D models, and their option sets do not overlap at all
+  // (GAN 3D: 32/64; WaveDiT: 128), so a value carried over from the other model would be sent as
+  // a resolution that model cannot produce. This mirrors the GAN branch that already existed.
+  useEffect(() => {
+    if (selectedModel === 'braingen_gan3d_BraTS_64_v1 (3D)') {
+      setResolution(prev => (prev === '32' || prev === '64' ? prev : '64'))
+    }
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
+      setResolution(prev => (prev === '128' ? prev : '128'))
+    }
+  }, [selectedModel])
+
   // The conditional diffusion model runs a real DDIM sampling loop on the CPU (~950 GFLOP per
   // step, 50 steps by default) and backend/image_generation.py loops `for i in range(n_images)`
   // SEQUENTIALLY inside one synchronous request. Asking for 5 multiplies an already
@@ -92,6 +112,15 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
   // continues to report the truth.
   useEffect(() => {
     if (selectedModel === 'braingen_CondDiffuser_BraTS_v1 (2D)') {
+      setNumImages(1)
+    }
+  }, [selectedModel])
+
+  // WaveDiT is capped to one image per request for the same reason: the backend clamps to
+  // wavedit_inference.MAX_IMAGES (1) and each sample is a full ODE loop over a 1.7 GB model, so a
+  // count carried over from a GAN would make the UI promise images that never arrive.
+  useEffect(() => {
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
       setNumImages(1)
     }
   }, [selectedModel])
@@ -288,6 +317,12 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
       return { resolution }
     }
 
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
+      // Keys match image_generation.py's params.get() lookups for this branch. `resolution` is the
+      // model's own control (native 128^3), so it is sent and recorded with the image.
+      return { age, steps, seed, resolution }
+    }
+
     return {}
   }
 
@@ -390,6 +425,14 @@ export default function GenerationPageClient({ projectId, userId, isPlayground =
         setLobe={setLobe}
         tumourSize={tumourSize}
         setTumourSize={setTumourSize}
+        // WaveDiT parameters -- required props, so these are threaded here alongside the
+        // interface addition in ParameterControlPanel.
+        age={age}
+        setAge={setAge}
+        steps={steps}
+        setSteps={setSteps}
+        seed={seed}
+        setSeed={setSeed}
         // Optional: `null` until the capability fetch settles, which the panel reads as
         // "leave everything enabled" so a slow backend does not lock the controls.
         conddiffCells={conddiffCells}

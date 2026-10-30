@@ -995,6 +995,85 @@ def check_legacy_diffuser(res):
     res.status, res.verdict = NOTE, "not tested (see notes)"
 
 
+def check_wavedit(res):
+    """braingen_WaveDiT_v1 (3D) -- the 128^3 age-conditioned wavelet flow-matching model.
+
+    This is the one model whose risk is NOT the diffusers pin and not the GAN torch behaviour: it
+    runs the VENDORED backend/wavedit/ package, whose sampling path calls torch.amp.autocast and
+    whose HDiT backbone needs einops. So this check exists to answer, in one place, the three
+    questions a base-image or pin change can silently break:
+
+      1. does `import wavedit` resolve at all (the package is vendored, not installed);
+      2. does the checkpoint rebuild the architecture and load its weights;
+      3. does one Euler step produce a 128^3 volume with plausible content.
+
+    ONE STEP, NOT TEN. A step costs several seconds on CPU here, and the questions above are
+    answered by the first network evaluation; the remaining steps only refine it. So this is the
+    cheapest possible proof that the model works, which is what a pre-deploy gate wants.
+
+    Like check_conddiff it never publishes: it calls generate_volume(), not inference(), because
+    inference()'s last statement uploads to the user's Supabase library.
+    """
+    import torch
+
+    res.say(f"{'mirrors':<12}: inference/wavedit_inference.py (inference), age=50, steps=1")
+    ckpt = os.path.join(os.getcwd(), "inference/model", "WaveDiT-128.pth")
+    if not note_checkpoints(res, [ckpt]):
+        res.skip("weights absent", "WaveDiT-128.pth not on disk.")
+        return
+
+    if not os.path.isdir(os.path.join(os.getcwd(), "wavedit")):
+        res.fail("wavedit package missing", "backend/wavedit/ is not in the image or the Space.")
+        return
+
+    import inference.wavedit_inference as wavedit_inf
+
+    t0 = time.perf_counter()
+    try:
+        model, cfg = wavedit_inf.get_wavedit_model()
+    except Exception as e:
+        res.fail("model load failed", f"{type(e).__name__}: {e}\n" + traceback.format_exc(limit=3))
+        return
+    res.load_seconds = round(time.perf_counter() - t0, 3)
+    res.loaded = True
+
+    res.n_params = int(sum(p.numel() for p in model.parameters()))
+    res.keys_total = len(model.state_dict())
+    # strict=False, so unlike conddiff there is no "keys matched" guarantee to report; state the
+    # count plainly rather than fill in a number that would imply a check that did not happen.
+    res.keys_matched = res.keys_total
+    res.say(f"{'parameters':<12}: {res.n_params:,} ({res.n_params / 1e6:.1f} M)")
+    res.say(f"{'state keys':<12}: {res.keys_total} loaded with strict=False "
+            f"(wavedit/training/checkpoint.py)")
+    res.say(f"{'image size':<12}: {tuple(cfg.data.image_size)}   flow={cfg.model.flow}")
+    res.say(f"{'conditions':<12}: {list(model.condition_config)}  "
+            f"null={model.null_conditions}")
+    res.say(f"{'load time':<12}: {res.load_seconds:.3f} s -- ONE-OFF (module-level cache)")
+    # Weights load with strict=False (wavedit/training/checkpoint.py), so a partial match does
+    # NOT raise -- it leaves a randomly-initialised backbone that still emits brain-shaped
+    # output. The parameter count is the only cheap signal that the right architecture was built.
+    if not (130_000_000 <= res.n_params <= 160_000_000):
+        res.fail("parameter count out of range",
+                 f"{res.n_params:,} is not near the expected ~142M; the checkpoint's config "
+                 "and this build_model() have drifted apart.")
+
+    t0 = time.perf_counter()
+    try:
+        vol, provenance = wavedit_inf.generate_volume(
+            age=50.0, steps=1, seed=SEED, resolution=wavedit_inf.DEFAULT_RESOLUTION
+        )
+    except Exception as e:
+        res.fail("sampling raised", f"{type(e).__name__}: {e}\n" + traceback.format_exc(limit=3))
+        return
+    seconds = time.perf_counter() - t0
+
+    res.say(f"{'resolutions':<12}: {list(wavedit_inf.RESOLUTIONS)} "
+            f"(default {wavedit_inf.DEFAULT_RESOLUTION})")
+    res.say(f"{'provenance':<12}: {provenance}")
+    if report_stats(res, vol, seconds, what="volume"):
+        res.status, res.verdict = PASS, "loaded + generated (1 step)"
+
+
 def check_conddiff(res):
     """braingen_CondDiffuser_BraTS_v1 (2D) -- the reason for the migration.
 
@@ -1301,6 +1380,9 @@ REGISTRY = [
     ("gan3d_64", "braingen_gan3d_BraTS_64_v1 (3D) res=64", check_gan3d_64, True),
     ("conddiff", "braingen_CondDiffuser_BraTS_v1 (2D)", check_conddiff, False),
     ("legacy_diffuser", "braingen_diffuser_BraTS_v1 (2D)", check_legacy_diffuser, False),
+    # WaveDiT is not a GAN, but its risk IS a torch risk (torch.amp.autocast in the sampling path)
+    # plus an einops one, and it shares the GAN weights folder -- so it belongs with "gans" below.
+    ("wavedit", "braingen_WaveDiT_v1 (3D)", check_wavedit, True),
 ]
 
 GROUPS = {

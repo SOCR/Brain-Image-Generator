@@ -105,3 +105,21 @@ safetensors==0.8.0
 # brain-shaped output. Re-test all five against known-good images after any torch change.
 # Torch >= 2.6 additionally flips torch.load's default to weights_only=True, which breaks every
 # existing `load_state_dict(torch.load(...), strict=False)` call in backend/inference/.
+
+# --- braingen_WaveDiT_v1 (3D) (the 128^3 wavelet flow-matching model) -------------------------
+# The model itself lives in backend/wavedit/, a VENDORED package (not on PyPI), so nothing here
+# installs it -- `import wavedit` resolves to that directory because api.py runs with backend/ as
+# the working directory. What is listed is the three third-party modules that package imports on
+# the SAMPLING path; the training-only ones (wandb, flow-matching) are optional imports inside it
+# and must NOT be added here.
+#   einops -- models/hdit/transformer.py rearranges tensors with it, at every forward pass.
+#   PyYAML -- wavedit/config.py imports it at module scope, so `from wavedit import Config` (the
+#             first thing wavedit_inference.py does) fails without it.
+#   tqdm   -- models/sampling.py wraps the ODE loop in tqdm for the per-step progress bar.
+# Deliberately NOT added: natten and flash-attn. models/hdit/ imports both inside try/except and
+# falls back to a pure-torch attention path that is numerically equivalent, so they are an
+# optional speedup on CUDA and a build risk (both need to compile against the exact torch) that
+# this CPU image must not take. WAVEDIT_NA_BACKEND=natten would opt in where they exist.
+einops==0.8.1
+PyYAML==6.0.2
+tqdm==4.67.1

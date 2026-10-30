@@ -112,6 +112,8 @@ async def list_models():
         "braingen_WaveletGAN_Multicontrast_BraTS_v1 (2D)",
         "braingen_diffuser_BraTS_v1 (2D)",
         "braingen_gan3d_BraTS_64_v1 (3D)",
+        # WaveDiT, the 128^3 age-conditioned wavelet flow-matching model.
+        "braingen_WaveDiT_v1 (3D)",
         # Atlas-guided conditional diffuser. NOTE: this endpoint is cosmetic - the frontend
         # hardcodes its own model list in ParameterControlPanel.tsx and never calls GET /models
         # (which is why this list already advertises braingen_diffuser_BraTS_v1, a model the UI
@@ -129,6 +131,11 @@ async def check_model_files():
         "WAVELET_GAN_FINE": os.path.join(os.getcwd(), "inference/model/generator_fine_epoch_16_2500.pth"),
         "GAN_3D_32": os.path.join(os.getcwd(), "inference/model/generator_epoch_6100.pth"),
         "GAN_3D_64": os.path.join(os.getcwd(), "inference/model/generator_epoch_3d64.pth"),
+        # --- braingen_WaveDiT_v1 (3D) --------------------------------------------------------
+        # 1.7 GB, so it is delivered out-of-band like the GAN weights and is not in git. This
+        # entry is the only way to confirm from outside the container that the copy landed.
+        # The path must stay in lockstep with inference/wavedit_inference.py's CKPT_FILENAME.
+        "WAVEDIT_128": os.path.join(os.getcwd(), "inference/model/WaveDiT-128.pth"),
         # --- braingen_CondDiffuser_BraTS_v1 assets -------------------------------------------
         # Unlike the GANs, this model needs more than a weights file: it also needs conditioning
         # (a patient T1, a tumour mask and 6 atlas lobe maps) that the website has no way to

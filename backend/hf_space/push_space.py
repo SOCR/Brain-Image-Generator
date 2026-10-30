@@ -43,6 +43,14 @@ FILES = {
     "inference/atlas_brainmask_mni2009_40.npy": os.path.join(BACKEND, "inference", "atlas_brainmask_mni2009_40.npy"),
     **{f"inference/{os.path.basename(p)}": p
        for p in glob.glob(os.path.join(BACKEND, "inference", "*.py"))},
+    # The vendored WaveDiT package (braingen_WaveDiT_v1 (3D)). It is NOT on PyPI and it is not
+    # inside inference/, so no glob above picks it up: without these entries the Space builds and
+    # boots fine, and WaveDiT alone fails at request time with ModuleNotFoundError: wavedit.
+    # __pycache__ is excluded because it holds .pyc files compiled against a different interpreter.
+    **{f"wavedit/{os.path.relpath(p, os.path.join(BACKEND, 'wavedit')).replace(os.sep, '/')}": p
+       for p in glob.glob(os.path.join(BACKEND, "wavedit", "**", "*.py"), recursive=True)
+       if "__pycache__" not in p},
+    "wavedit/__init__.py": os.path.join(BACKEND, "wavedit", "__init__.py"),
 }
 
 ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
