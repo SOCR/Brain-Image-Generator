@@ -18,7 +18,7 @@ WHAT IT DOES
      endpoints, never the data -- the weights and BraTS slices stay in the private ASSETS_REPO;
   2. sets the Space VARIABLE ASSETS_REPO (not a secret: it is only a repo name);
   3. uploads the files below.
-Secrets (HF_TOKEN, SUPABASE_URL, SUPABASE_KEY) are NOT set here -- add them once in the Space's
+Secrets (HF_TOKEN, SUPABASE_URL, SUPABASE_KEY, SPACE_API_SECRET) are NOT set here -- add them once in the Space's
 Settings page, so no credential ever passes through a script or a shell history.
 
 Needs `pip install huggingface_hub` and `hf auth login` (a token with WRITE access) first.
