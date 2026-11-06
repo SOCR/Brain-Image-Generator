@@ -117,8 +117,9 @@ def inference_diffuser(save_path, user_id=None, project_id=None, is_playground=F
     noisy_sample = torch.randn(
         1, model.config.in_channels, model.config.sample_size, model.config.sample_size
     )
-    model.to("cuda")
-    noisy_sample = noisy_sample.to("cuda")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    noisy_sample = noisy_sample.to(device)
 
     sample = noisy_sample
 
@@ -135,7 +136,7 @@ def inference_diffuser(save_path, user_id=None, project_id=None, is_playground=F
     image_processed = image_processed.numpy().astype(np.uint8)
 
     # Save the images and return the filenames
-    image_filenames = save_images(image_processed, save_path, user_id, project_id, None, None, is_playground)
+    image_filenames = save_images(image_processed[0], save_path, user_id, project_id, None, None, is_playground)
 
     return image_filenames
 

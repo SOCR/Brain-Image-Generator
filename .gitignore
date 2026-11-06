@@ -46,8 +46,13 @@ backend/**/__pycache__/
 backend/*.pyc
 backend/.env
 backend/data/
-backend/inference/model/*.safetensors
-backend/inference/model/ddim-brain-128/
+# weights and the conditioning bank (not redistributable), downloaded from Hugging Face
+backend/inference/model/
+backend/inference/conddiff_bundle/
+backend/inference/.cache/
+backend/inference/.gitattributes
+# generate_local.py output
+outputs/
 
 # Docker
 backend/deploy.log
