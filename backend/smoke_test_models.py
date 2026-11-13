@@ -395,12 +395,10 @@ def report_environment():
         print("  ***  torch.cuda.is_available() is FALSE -- THIS PROCESS WILL RUN ON THE CPU  ***")
         print("  " + "*" * 88)
         if torch.version.cuda is None:
-            print("  *  Cause: this is a CPU-ONLY WHEEL (no '+cuXXX' build). requirements.txt still")
-            print("  *  pins `torch==2.0.1+cpu` behind `--extra-index-url .../whl/cpu`. On the EC2")
-            print("  *  GPU host that pin must become the cu118 build of the SAME version:")
-            print("  *      --extra-index-url https://download.pytorch.org/whl/cu118")
-            print("  *      torch==2.0.1+cu118")
-            print("  *  Same source, same numerics for the five GAN models, different backend.")
+            print("  *  Cause: this is a CPU-only PyTorch build. The five GAN models always run on")
+            print("  *  the CPU; the diffusion models will be slow. For an NVIDIA GPU, install")
+            print("  *  torch==2.11.0 from https://download.pytorch.org/whl/cu128 before the")
+            print("  *  requirements of backend/hf_space/requirements.txt.")
         else:
             print("  *  Cause: this IS a CUDA build, but no usable device was found. Check, in order:")
             print("  *    - the instance actually has a GPU        (nvidia-smi)")
@@ -417,8 +415,8 @@ def report_environment():
         print("  *     wgan_inference.py:151-152, gan_3d_inference_v1.py:61-62), and every")
         print("  *    torch.load passes map_location='cpu'. They are unaffected by the device.")
         print("  *    braingen_CondDiffuser_BraTS_v1 IS THE ONE THAT CARES. Its DDIM loop is")
-        print("  *    ~950 GFLOP per step for 50-200 steps: ~1 s/sample on a GPU, ~2 min on a")
-        print("  *    full multi-core laptop CPU. Serving that synchronously is not viable.")
+        print("  *    ~950 GFLOP per step for 50-200 steps: ~10 s per 50-step sample on a laptop")
+        print("  *    GPU, 2-3 min on a laptop CPU.")
         print("  " + "*" * 88)
         if os.environ.get("SMOKE_EXPECT_CUDA", "").strip().lower() in ("1", "true", "yes"):
             hard.append("SMOKE_EXPECT_CUDA is set but torch.cuda.is_available() is False")
@@ -465,8 +463,8 @@ def report_environment():
                 print("        GAN below must be re-run and its 'keys matched' compared.")
 
     print()
-    print("  Reminder: gallery mode imports NEITHER torch NOR diffusers. Only CONDDIFF_MODE=live")
-    print("  reaches them, which is why the Lightsail deploy scripts force CONDDIFF_MODE=gallery.")
+    print("  Reminder: gallery mode imports NEITHER torch NOR diffusers; only CONDDIFF_MODE=live")
+    print("  reaches them.")
     print(f"  CONDDIFF_MODE = {os.environ.get('CONDDIFF_MODE') or '(unset -> live)'}   "
           f"CONDDIFF_STEPS = {os.environ.get('CONDDIFF_STEPS') or '(unset -> 50)'}")
     return env, hard
@@ -1246,7 +1244,7 @@ def _print_healthcheck_verdict(res, gen_s, load_s, steps, device):
                                 "first_request_s": round(first, 2),
                                 "replace_after_s": HEALTH_REPLACE_S}
     res.say("")
-    res.say("HEALTH-CHECK VERDICT  (Lightsail container healthCheck arithmetic)")
+    res.say("HEALTH-CHECK ARITHMETIC  (for a host that replaces a container whose /health stops answering)")
     res.say(f"  timeout {HEALTH_TIMEOUT_S}s x threshold {HEALTH_THRESHOLD} at {HEALTH_INTERVAL_S}s"
             f" intervals -> container replaced after ~{HEALTH_REPLACE_S}s of blockage")
     res.say(f"  measured : {gen_s:.1f}s per image ({steps} DDIM steps on {device})")
@@ -1275,15 +1273,12 @@ def _print_healthcheck_verdict(res, gen_s, load_s, steps, device):
         res.say("     change, no async pattern needed. This is the number the whole design")
         res.say("     rests on, and it has now been measured rather than assumed.")
     else:
-        res.say("  => DO NOT SERVE THIS SYNCHRONOUSLY ON A LIGHTSAIL CONTAINER. Either move to")
-        res.say("     hardware where the measurement lands GREEN, cut CONDDIFF_STEPS, or set")
-        res.say("     CONDDIFF_MODE=gallery on this box (which is exactly what the four deploy")
-        res.say("     scripts already do as a safety interlock).")
+        res.say("  => On a host with such a health check, do not serve this synchronously: use a")
+        res.say("     GPU (the Hugging Face Space back end runs on one), cut CONDDIFF_STEPS, or set")
+        res.say("     CONDDIFF_MODE=gallery.")
     res.say("")
-    res.say("  CAVEAT, so this number is not over-read: the health check above is LIGHTSAIL's.")
-    res.say("  A plain EC2 GPU host running the container directly has no such supervisor, so")
-    res.say("  there is nothing to replace the process -- the only cost of a slow request is")
-    res.say("  latency and a blocked worker. The arithmetic still tells you when to worry.")
+    res.say("  CAVEAT: a local run, or a host without such a supervisor, has nothing to replace")
+    res.say("  the process; the only cost of a slow request there is latency.")
 
 
 # =================================================================================================
@@ -1452,8 +1447,8 @@ def main(argv):
         print("  SKIPPED (weights or assets not on this machine -- NOT a pass):")
         for r in skipped:
             print(f"    {r.label}: {r.verdict}")
-        print("  A skipped model has been proved NOTHING about. Re-run this inside the built")
-        print("  image, where the checkpoints actually live, before treating it as a gate.")
+        print("  A skipped model has not been tested. Install its assets (for conddiff, the")
+        print("  conditioning bank) and re-run.")
     if hard_failures:
         print()
         print("  ENVIRONMENT FAILURES (independent of any model):")
