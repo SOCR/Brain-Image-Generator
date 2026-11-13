@@ -46,6 +46,7 @@ and generate(). DEPLOY.md §4 has the arithmetic.
 # is inert and @spaces.GPU is a pass-through, so this same file runs locally on the CPU.
 import spaces
 
+import hmac
 import io
 import os
 import secrets
@@ -203,16 +204,26 @@ cdiff._generate_live = _render_live
 
 
 # --- 5. THE TWO CALLS THE WEBSITE MAKES ----------------------------------------------------------
+# ONLY THE WEBSITE MAY PUBLISH. This endpoint is public and SUPABASE_KEY bypasses row-level
+# security, so a direct caller could otherwise write images into any account. The site's
+# /api/generate sends this secret (Vercel env of the same name) and takes user_id from the
+# signed-in session. os.environ[...], not .get(): a Space missing the secret fails its boot
+# instead of running with the gate open. A local run needs it set too.
+SPACE_API_SECRET = os.environ["SPACE_API_SECRET"].encode()
+
+
 def generate(payload: dict) -> dict:
     """api.py's POST /generate, as a Gradio endpoint. Same request body, same response body.
 
-    payload: {user_id, project_id, model_name, n_images=1, params={}, is_playground=False}
+    payload: {user_id, project_id, model_name, n_images=1, params={}, is_playground=False, api_secret}
     returns: {"image_paths": [[id_or_url, ...], ...]}  one inner list per generated image set
 
     n_images is clamped to 1..5, the UI's own range. api.py never bounded it, but this endpoint is
     public and the queue runs one call at a time, so one n_images=10000 GAN call would block every
     user and fill the Supabase bucket.
     """
+    if not hmac.compare_digest(str(payload.get("api_secret", "")).encode(), SPACE_API_SECRET):
+        raise gr.Error("Forbidden")
     _last_error.message = None
     try:
         paths = image_generation.generate_image(
