@@ -17,6 +17,12 @@ import inference.gan_3d_inference_v1 as gan3d
 # reimplemented in numpy), so a missing optional dependency cannot break this import. Its
 # startup asset check is likewise wrapped so that missing weights set a flag instead of raising.
 import inference.conddiff_inference as cdiff
+# WaveDiT, the 128^3 wavelet flow-matching model (braingen_WaveDiT_v1 (3D)). Same module-scope
+# placement as the others, and for the same reason it is safe here: inference/wavedit_inference.py
+# imports only numpy and nibabel at module scope and defers torch and the vendored `wavedit`
+# package to the call, so a deployment missing that package fails THIS model at request time
+# instead of breaking the import that starts FastAPI.
+import inference.wavedit_inference as wavedit_inf
 
 
 def sanitize_filename(filename):
@@ -41,7 +47,7 @@ def generate_image(user_id, project_id, model_name, n_images, params, is_playgro
         model_list = ["braingen_GAN_seg_TCGA_v1","braingen_cGAN_Multicontrast_BraTS_v1",
                       "braingen_cGAN_Multicontrast_seg_BraTS_v1", "braingen_WaveletGAN_Multicontrast_BraTS_v1",
                       "braingen_diffuser_BraTS_v1","braingen_gan3d_BraTS_64_v1",
-                      "braingen_CondDiffuser_BraTS_v1"]
+                      "braingen_CondDiffuser_BraTS_v1", "braingen_WaveDiT_v1"]
         image_paths = []
 
         print("in python", params)
@@ -56,6 +62,13 @@ def generate_image(user_id, project_id, model_name, n_images, params, is_playgro
         if model_name == "braingen_CondDiffuser_BraTS_v1 (2D)" and n_images > cdiff.MAX_IMAGES:
             print(f"Clamping n_images {n_images} -> {cdiff.MAX_IMAGES} for {model_name}")
             n_images = cdiff.MAX_IMAGES
+
+        # Same reasoning as the diffuser above, for a different reason: one WaveDiT sample is a full
+        # ODE loop over a 1.7 GB model that writes a 128^3 volume, so five of them in one
+        # synchronous request would block the single uvicorn worker for the sum of all five.
+        if model_name == "braingen_WaveDiT_v1 (3D)" and n_images > wavedit_inf.MAX_IMAGES:
+            print(f"Clamping n_images {n_images} -> {wavedit_inf.MAX_IMAGES} for {model_name}")
+            n_images = wavedit_inf.MAX_IMAGES
 
         for i in range(n_images):
             save_path = os.path.join(os.getcwd(),f"data\\{user_id}\\{project_id}")
@@ -111,6 +124,35 @@ def generate_image(user_id, project_id, model_name, n_images, params, is_playgro
                 elif model_name == "braingen_gan3d_BraTS_64_v1 (3D)":
                     resolution = params["resolution"]
                     image_path = gan3d.inference(model_name, resolution, save_path, user_id, project_id, is_playground)
+
+                elif model_name == "braingen_WaveDiT_v1 (3D)":
+                    # WaveDiT 128^3, conditioned on patient age. The model_name literal must match
+                    # the `id` in ParameterControlPanel.tsx's models3D array byte-for-byte,
+                    # including the space before "(3D)" -- that string is POSTed verbatim as
+                    # model_name and compared with == here.
+                    #
+                    # Every key uses .get() with the frontend's own default, for the same reason the
+                    # diffuser branch above does: a bare KeyError would be swallowed by the except
+                    # at the bottom of this loop and returned as HTTP 200 with an empty list, i.e. a
+                    # green "Success" toast over a blank viewer. resolution is ignored on purpose
+                    # (this checkpoint is native 128^3 only) and accepted only so the shared
+                    # resolution control cannot raise.
+                    age = params.get("age", 50.0)      # years, clamped to 6..95 by the module
+                    steps = params.get("steps", wavedit_inf.DEFAULT_STEPS)  # ODE steps, 1..50
+                    seed = params.get("seed", 42 + i)
+                    resolution = params.get("resolution", wavedit_inf.DEFAULT_RESOLUTION)  # "128"
+
+                    image_path = wavedit_inf.inference(
+                        model_name=model_name,
+                        age=age,
+                        steps=steps,
+                        seed=seed,
+                        resolution=resolution,
+                        save_path=save_path,
+                        user_id=user_id,
+                        project_id=project_id,
+                        is_playground=is_playground,
+                    )
                 else:
                     image_path = ""
                     print("Wrong model called for inference")

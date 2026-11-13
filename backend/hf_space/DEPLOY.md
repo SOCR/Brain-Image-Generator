@@ -21,11 +21,12 @@
    ├─ endpoint "generate"        = api.py POST /generate        (same JSON in and out)
    ├─ endpoint "conddiff_cells"  = api.py GET  /conddiff-cells  (same JSON out)
    ├─ main process, CPU, no quota:     image_generation.py → 4 GAN modules (5 models)
-   └─ @spaces.GPU worker, uses quota:  conddiff _generate_live → 200 DDIM steps
+   ├─ @spaces.GPU worker, uses quota:  conddiff _generate_live → 200 DDIM steps
+   └─ @spaces.GPU worker, uses quota:  wavedit generate_volume → up to 50 Euler steps
    ▲ at boot: snapshot_download (Space secret HF_TOKEN)        │ publish
    │                                                           ▼
  HF model repo  ALIUD1/braingen-assets  [PRIVATE]           Supabase (storage + DB)  [unchanged]
-   model/          7 GAN weight files (~450 MB)
+   model/          7 GAN weight files (~450 MB) + WaveDiT-128.pth (1.7 GB)
    conddiff_bundle/  = web_bundle/ (checkpoint + 42 BraTS slices + manifest, 367 MB)
 ```
 
@@ -113,6 +114,14 @@ Laptop (the 7 GAN files the code loads):
 hf repos create ALIUD1/braingen-assets --private
 hf upload ALIUD1/braingen-assets C:/Users/alexl/code/Research/socr/_socr_checkpoints/app/inference/model model --include generator_epoch_200_seg.pth --include generator_epoch_145.pth --include generator_epoch_95_seg.pth --include generator_coarse_epoch_16_2500.pth --include generator_fine_epoch_16_2500.pth --include generator_epoch_6100.pth --include generator_epoch_3d64.pth
 ```
+WaveDiT's checkpoint goes to the same `model/` folder, so `snapshot_download` at boot drops it where
+`inference/wavedit_inference.py` looks for it. It is ~1.7 GB, so it is a separate upload:
+```bash
+hf upload ALIUD1/braingen-assets <path>/WaveDiT-128.pth model/WaveDiT-128.pth
+```
+WaveDiT is OPTIONAL at boot: if this file is absent the Space still starts and serves the other six
+models, and only WaveDiT requests fail (app.py wraps the load and logs the reason).
+
 Great Lakes **login node**, which has internet (compute nodes don't):
 ```bash
 module load python && source ~/envs/brainmri/bin/activate

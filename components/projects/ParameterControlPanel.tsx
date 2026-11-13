@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
+import { Slider } from '@/components/ui/slider'
 import { Loader2 } from 'lucide-react'
 
 interface ParameterControlPanelProps {
@@ -48,6 +49,18 @@ interface ParameterControlPanelProps {
   // panel where nothing can be clicked.
   conddiffCells?: { ready: boolean; pairs: { lobe: string; slice_location: string }[] } | null
 
+  // WaveDiT parameters (braingen_WaveDiT_v1 (3D))
+  // Age conditions the volume; steps is the ODE integration count; seed makes a sample
+  // reproducible. Like lobe/tumourSize above these are REQUIRED props (no `?`), so
+  // GenerationPageClient must pass them in the same change -- next.config.ts sets
+  // typescript.ignoreBuildErrors, so the build will NOT catch a missing prop for you.
+  age: number
+  setAge: (value: number) => void
+  steps: number
+  setSteps: (value: number) => void
+  seed: number
+  setSeed: (value: number) => void
+
   // Generation state
   isGenerating: boolean
   onGenerate: () => void
@@ -72,6 +85,12 @@ export default function ParameterControlPanel({
   setLobe,
   tumourSize,
   setTumourSize,
+  age,
+  setAge,
+  steps,
+  setSteps,
+  seed,
+  setSeed,
   conddiffCells = null,
   isGenerating,
   onGenerate,
@@ -100,8 +119,19 @@ export default function ParameterControlPanel({
   ]
 
   const models3D = [
+    // WaveDiT, age-conditioned wavelet flow matching. The `id` is sent to the backend VERBATIM as
+    // `model_name`, so it must match image_generation.py's `elif` byte-for-byte, including the
+    // space before '(3D)'. The label carries no resolution: output size is its own control below,
+    // the same way the GAN 3D model does it.
+    { id: 'braingen_WaveDiT_v1 (3D)', name: 'WaveDiT' },
     { id: 'braingen_gan3d_BraTS_64_v1 (3D)', name: 'GAN 3D BraTS 64 v1' },
   ]
+
+  // Output resolutions WaveDiT offers. Only the native 128^3 checkpoint is deployed, so this is a
+  // one-item list rather than an arbitrary choice -- but it is a real control, because the value
+  // is sent to the backend and recorded with the image, and because a one-item list reads as
+  // "this is the model's output size" instead of leaving the user to guess.
+  const WAVEDIT_RESOLUTIONS = ['128']
 
   // Per-model ceiling on "Number of Images". The GANs are a single forward pass each, so five
   // is cheap. The conditional diffusion model runs a full DDIM sampling loop on the CPU and the
@@ -109,7 +139,12 @@ export default function ParameterControlPanel({
   // would multiply a request that is already minutes long. GenerationPageClient additionally
   // clamps the state when this model is selected; this is the control that stops the user
   // raising it again.
-  const maxImages = selectedModel === 'braingen_CondDiffuser_BraTS_v1 (2D)' ? 1 : 5
+  //
+  // WaveDiT is capped for the same reason and one more: each sample is an ODE loop over a 1.7 GB
+  // checkpoint, and image_generation.py clamps to wavedit_inference.MAX_IMAGES (1) server-side,
+  // so offering 5 here would let the UI promise images the backend will not produce.
+  const ONE_IMAGE_ONLY = ['braingen_CondDiffuser_BraTS_v1 (2D)', 'braingen_WaveDiT_v1 (3D)']
+  const maxImages = ONE_IMAGE_ONLY.includes(selectedModel) ? 1 : 5
 
   // Is the CURRENT conddiff selection actually generatable? Computed here at component scope,
   // not inside renderParameterFields(), because the Generate button needs it and that helper
@@ -396,6 +431,85 @@ export default function ParameterControlPanel({
                 <SelectItem value="64">64</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        </div>
+      )
+    }
+
+    if (selectedModel === 'braingen_WaveDiT_v1 (3D)') {
+      // WaveDiT's own axes: age conditions the volume, steps is the ODE integration count and
+      // seed makes a sample reproducible.
+      return (
+        <div className="space-y-4 mt-4">
+          {/* Resolution */}
+          <div>
+            <Label htmlFor="wavedit-resolution-select">Resolution</Label>
+            <Select value={resolution} onValueChange={setResolution}>
+              <SelectTrigger id="wavedit-resolution-select" className="bg-white dark:bg-gray-800 mt-1">
+                <SelectValue placeholder="Select resolution" />
+              </SelectTrigger>
+              <SelectContent>
+                {WAVEDIT_RESOLUTIONS.map(r => (
+                  <SelectItem key={r} value={r}>{r}³</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Native output size of the deployed checkpoint.
+            </p>
+          </div>
+
+          <div>
+            <Label htmlFor="age-input">Patient Age</Label>
+            <Input
+              id="age-input"
+              type="number"
+              min={6}
+              max={95}
+              value={age}
+              onChange={(e) => setAge(Math.max(6, Math.min(95, parseInt(e.target.value) || 50)))}
+              className="w-full bg-white dark:bg-gray-800 mt-1"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Conditioning range: 6 to 95 years
+            </p>
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-1.5">
+              <Label htmlFor="steps-slider">Sampling Steps</Label>
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                {steps}
+              </span>
+            </div>
+            <Slider
+              id="steps-slider"
+              min={1}
+              max={50}
+              step={1}
+              value={[steps]}
+              onValueChange={(val) => setSteps(val[0] ?? 10)}
+              className="mt-1"
+            />
+            <div className="flex justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1">
+              <span>1 (fastest)</span>
+              <span>10 (default)</span>
+              <span>50 (finest)</span>
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="seed-input">Random Seed</Label>
+            <Input
+              id="seed-input"
+              type="number"
+              value={seed}
+              onChange={(e) => setSeed(parseInt(e.target.value) || 0)}
+              className="w-full bg-white dark:bg-gray-800 mt-1"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Same seed and steps reproduces the same volume.
+            </p>
           </div>
         </div>
       )

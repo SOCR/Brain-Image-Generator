@@ -111,6 +111,7 @@ from PIL import Image                                # noqa: E402
 
 import image_generation                              # noqa: E402  the unmodified dispatcher + 4 GAN modules
 import inference.conddiff_inference as cdiff         # noqa: E402  (already imported by the line above)
+import inference.wavedit_inference as wavedit_inf    # noqa: E402  (already imported by the line above)
 
 # --- 3. PUT THE DIFFUSION MODEL "ON CUDA" ONCE, IN THE MAIN PROCESS -----------------------------
 # ZeroGPU's documented pattern: build the model at module level and call .to("cuda") there. In the
@@ -202,6 +203,75 @@ def _render_live(spec, rng, seed):
 cdiff._generate_live = _render_live
 
 
+# --- 4b. WAVEDIT (braingen_WaveDiT_v1 (3D)): SAME TREATMENT AS THE DIFFUSER ---------------------
+# WaveDiT is the second model here that is worth a GPU: one 128^3 volume is an ODE loop over a
+# 1.7 GB checkpoint, which on the Space's CPU would be minutes per image. It follows the exact
+# pattern above, so the two models cannot drift apart:
+#
+#   * the model is BUILT AND PLACED IN THE MAIN PROCESS (the .to("cuda") below is intercepted by
+#     ZeroGPU and replayed in each worker) rather than inside a GPU function, so the 1.7 GB
+#     checkpoint is read once at boot instead of on every request against the caller's quota;
+#   * only generate_volume -- the sampling loop -- crosses into the GPU worker. Publishing to
+#     Supabase happens back in the main process, inside wavedit_inference.inference(), after the
+#     worker has returned, so no GPU quota is spent on the upload;
+#   * a failure is re-raised as gr.Error inside the worker and stashed for generate(), because
+#     image_generation.py's blanket except would otherwise turn it into "no images".
+#
+# BOOT MUST NOT DEPEND ON IT. Unlike cdiff, whose assets are required, WaveDiT's checkpoint is
+# optional: a Space deployed before the 1.7 GB file reaches ASSETS_REPO is a valid deployment of
+# the other six models. So the load is wrapped, and a failure only disables this one model.
+WAVEDIT_READY = False
+WAVEDIT_REASON = "not attempted"
+try:
+    # Build on CPU, then move: ZeroGPU intercepts the .to("cuda") and replays it in every
+    # worker, which is the point -- see the module comment above.
+    wavedit_inf.load_wavedit_model(device="cuda" if os.environ.get("SPACES_ZERO_GPU") else None)
+    WAVEDIT_READY = True
+except Exception as e:                                  # noqa: BLE001 - boot must survive
+    WAVEDIT_REASON = f"{type(e).__name__}: {e}"
+    print(f"[hf_space] WaveDiT unavailable, the other models are unaffected: {WAVEDIT_REASON}")
+
+try:
+    WAVEDIT_GPU_DURATION = max(1, round(float(os.environ.get("WAVEDIT_GPU_DURATION", "60"))))
+except (ValueError, OverflowError):                     # same defensive parse as CONDDIFF_GPU_DURATION
+    WAVEDIT_GPU_DURATION = 60
+    print(f"[hf_space] WAVEDIT_GPU_DURATION={os.environ.get('WAVEDIT_GPU_DURATION')!r} is not a "
+          "number -- using 60")
+
+_generate_volume_cpu = wavedit_inf.generate_volume     # captured before the rebinding below
+
+
+@spaces.GPU(duration=WAVEDIT_GPU_DURATION)
+def _wavedit_on_gpu(age, steps, seed, resolution=None):
+    """Run WaveDiT's sampling loop inside a ZeroGPU worker. Same arguments, same return value.
+
+    Returns (float32 numpy array in [0, 1], provenance dict). Both are plain picklable CPU objects,
+    which is what the process boundary requires.
+    """
+    if not WAVEDIT_READY:
+        raise gr.Error(WAVEDIT_REASON)
+    kwargs = {"age": age, "steps": steps, "seed": seed}
+    if resolution is not None:
+        kwargs["resolution"] = resolution
+    try:
+        return _generate_volume_cpu(**kwargs)
+    except Exception as e:
+        raise gr.Error(f"{type(e).__name__}: {e}") from e
+
+
+def _wavedit_generate_volume(age=50.0, steps=10, seed=42, resolution=None):
+    try:
+        return _wavedit_on_gpu(age, steps, seed, resolution)
+    except Exception as e:
+        _last_error.message = getattr(e, "message", None) or str(e)
+        raise
+
+
+# THE REBINDING, exactly as for cdiff: inference() looks generate_volume up in its module globals at
+# call time, and the worker calls _generate_volume_cpu (captured above), never the rebound name.
+wavedit_inf.generate_volume = _wavedit_generate_volume
+
+
 # --- 5. THE TWO CALLS THE WEBSITE MAKES ----------------------------------------------------------
 def generate(payload: dict) -> dict:
     """api.py's POST /generate, as a Gradio endpoint. Same request body, same response body.
@@ -254,23 +324,55 @@ def preview(tumour, lobe, slice_location, tumour_size, seed):
             cdiff._json_safe({"seed": seed, **provenance}))
 
 
+def wavedit_preview(age, steps, seed, resolution=None):
+    """The Space page's WaveDiT test form: one volume through the SAME GPU path, published nowhere.
+
+    Prints one mid-axial slice so the run can be eyeballed, and returns the provenance (including
+    the resolution, step count and seed) so a deployment can be checked before the website is
+    pointed at it.
+    """
+    if not WAVEDIT_READY:
+        raise gr.Error(WAVEDIT_REASON)
+    seed = None if seed is None else int(seed)
+    volume, provenance = _wavedit_on_gpu(
+        float(age if age is not None else 50), int(steps or 10), seed, resolution
+    )
+    slice_index = volume.shape[2] // 2
+    return (volume[:, :, slice_index], {"seed": seed, **provenance})
+
+
 with gr.Blocks(title="SOCR Brain Image Generator backend") as demo:
     gr.Markdown(
         "## SOCR Brain Image Generator: backend\n"
-        "API backend for the SOCR Brain-Image-Generator website (5 GANs on CPU + the atlas-guided "
-        "conditional diffusion model on ZeroGPU). The form below runs one diffusion sample "
-        "without publishing it."
+        "API backend for the SOCR Brain-Image-Generator website (5 GANs on CPU, WaveDiT and the "
+        "atlas-guided conditional diffusion model on ZeroGPU). The forms below run one sample "
+        "each without publishing it."
     )
-    with gr.Row():
-        tumour = gr.Dropdown(list(cdiff.UI_TUMOUR), value="With Tumor", label="Tumour")
-        lobe = gr.Dropdown(list(cdiff.UI_LOBE), value="Frontal", label="Lobe")
-        level = gr.Dropdown(list(cdiff.UI_LEVEL), value="Middle", label="Slice location")
-        size = gr.Dropdown(list(cdiff.UI_SIZE), value="Moderate", label="Tumour size")
-        seed = gr.Number(value=None, precision=0, label="Seed (blank = random)")
-    run = gr.Button("Generate one FLAIR", variant="primary")
-    out_images = gr.Gallery(label="FLAIR, tumour mask", columns=2)
-    out_record = gr.JSON(label="What happened (the provenance the website records)")
-    run.click(preview, [tumour, lobe, level, size, seed], [out_images, out_record])
+    with gr.Tab("Conditional diffusion"):
+        with gr.Row():
+            tumour = gr.Dropdown(list(cdiff.UI_TUMOUR), value="With Tumor", label="Tumour")
+            lobe = gr.Dropdown(list(cdiff.UI_LOBE), value="Frontal", label="Lobe")
+            level = gr.Dropdown(list(cdiff.UI_LEVEL), value="Middle", label="Slice location")
+            size = gr.Dropdown(list(cdiff.UI_SIZE), value="Moderate", label="Tumour size")
+            seed = gr.Number(value=None, precision=0, label="Seed (blank = random)")
+        run = gr.Button("Generate one FLAIR", variant="primary")
+        out_images = gr.Gallery(label="FLAIR, tumour mask", columns=2)
+        out_record = gr.JSON(label="What happened (the provenance the website records)")
+        run.click(preview, [tumour, lobe, level, size, seed], [out_images, out_record])
+
+    with gr.Tab("WaveDiT 3D"):
+        # The 128^3 volume is displayed as one mid-axial slice: Gradio has no volume renderer, and
+        # the point of this form is to prove the model loaded and sampled, not to browse the brain.
+        with gr.Row():
+            wd_age = gr.Number(value=50, precision=0, label="Patient age (6-95)")
+            wd_steps = gr.Slider(1, 50, value=10, step=1, label="Sampling steps")
+            wd_res = gr.Dropdown(list(wavedit_inf.RESOLUTIONS), value=wavedit_inf.DEFAULT_RESOLUTION,
+                                 label="Resolution")
+            wd_seed = gr.Number(value=None, precision=0, label="Seed (blank = random)")
+        wd_run = gr.Button("Generate one volume", variant="primary")
+        wd_out = gr.Image(label="Mid-axial slice of the generated volume")
+        wd_record = gr.JSON(label="What happened")
+        wd_run.click(wavedit_preview, [wd_age, wd_steps, wd_seed, wd_res], [wd_out, wd_record])
 
     # The website's two calls: API-only endpoints, no UI components.
     gr.api(generate, api_name="generate")
