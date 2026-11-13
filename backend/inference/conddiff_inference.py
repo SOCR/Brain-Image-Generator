@@ -1306,22 +1306,23 @@ def _check_assets():
         if not os.path.isfile(MANIFEST_PATH):
             problems.append(
                 f"conditioning bank manifest NOT FOUND at {MANIFEST_PATH}.\n"
-                "  This model cannot invent its own conditioning: it needs a real patient T1 and "
-                "six SRI24-warped atlas lobe maps, and the atlas is the output of a one-time ANTs "
-                "registration that is normalised by a single global scalar -- recomputing it "
-                "anywhere else would silently change every lesion size.\n"
+                "  The conditional diffusion model needs its conditioning bank (manifest.json and "
+                "cond_slices/: real BraTS T1 slices and SRI24-warped atlas lobe maps), which is not "
+                "redistributed.\n"
                 # THE INSTRUCTION MUST NAME THE LAYOUT THIS FILE ACTUALLY READS. It used to say
                 # "copy slices into conddiff_bank/slices/ and write a manifest.csv" -- the layout
                 # of an earlier revision that nothing ever produced (see _load_manifest's
                 # docstring and the BANK_DIR comment in SECTION 1). An operator who followed it
                 # would build conddiff_bank/manifest.csv by hand, redeploy, and get this exact
                 # same error again, because MANIFEST_PATH points at conddiff_bundle/manifest.json.
-                "  Produce it on Great Lakes with scripts/export_for_website.py, which writes a "
-                "web_bundle/ folder containing manifest.json, cond_slices/<patient>_z###.npy and "
-                "diffusion_ema.pt. Copy that folder WHOLE to "
-                "backend/inference/conddiff_bundle/ before `docker build` -- do not rearrange it, "
-                "and do not hand-write a manifest: this reader wants the exporter's JSON "
-                "('slices' array of {file, patient, z, level, lobes}), not a CSV."
+                "  Rebuild it with scripts/02_register_atlas.py, scripts/03_preprocess.py and "
+                "scripts/export_for_website.py of the Socr_2026 repository (the paper's "
+                "Supplementary Note 1), then copy manifest.json and cond_slices/ from the "
+                "exporter's web_bundle/ folder into backend/inference/conddiff_bundle/ without "
+                "rearranging them; do not hand-write the manifest (this reader wants the exporter's "
+                "JSON, a 'slices' array of {file, patient, z, level, lobes}). A rebuilt bank is not "
+                "guaranteed to match the original (the registration depends on the ANTsPy version "
+                "and thread count), so anatomy and lesion sizes can differ from the published samples."
             )
         else:
             try:
